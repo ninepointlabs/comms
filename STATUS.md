@@ -2,7 +2,7 @@
 
 **What it is:** an all-in-one text chat addon for WoW Forever. It replaces the Prat + WIM + Chattynator + BigChatBox + Block Blizzard Chat Channels stack with one addon and stays out of the way in chat lockdown (dungeons, raids, battlegrounds). It's built from `BRIEF.md` (gitignored), on The Terminal List's layout, widget kit, strict-mock tests and CI/release workflow.
 
-**Repo:** https://github.com/ninepointlabs/comms (**private**), branch `feature/initial-addon`, PR against `main`. **Not merged, tagged or released.** Commits use `Nine Point Labs <179739321+ninepointlabs@users.noreply.github.com>`.
+**Repo:** https://github.com/ninepointlabs/comms (**private**), branch `feature/initial-addon`, PR #1 https://github.com/ninepointlabs/comms/pull/1 against `main`. **Not merged, tagged or released.** Commits use `Nine Point Labs <179739321+ninepointlabs@users.noreply.github.com>`.
 
 **Not done (not authorized):** merge, tag, release, CurseForge/Wago/WoWInterface, website, DNS, posts. Nothing was installed into the live WoW folder: `tools/install-dev.sh` only ran into a scratch folder, and it now refuses the live `_forever_` AddOns path unless `COMMS_ALLOW_LIVE=1`. WTF/SavedVariables weren't touched; the installed AddOns folder was only read (slash-command collision check).
 
@@ -16,7 +16,7 @@
 | `tools/install-dev.sh <scratch>` | copies only the 2 TOCs, `Bindings.xml`, Core, Modules, UI, Media and LICENSE (34 files) |
 | `tools/install-dev.sh <live _forever_ AddOns>` | refused, exit 1, nothing written |
 | `omaforge clients` | Forever `1.60.1.71091`, Interface `16001`, matching both TOCs |
-| CI (`.github/workflows/test.yml`) | see the PR checks |
+| CI (`.github/workflows/test.yml`: syntax + tests) | **pass** on PR #1 (run 45460490067) |
 
 The strict mock (`tests/wow_mock.lua`) errors on any undefined global and loads every TOC file. It mocks Forever's `ChatFrameUtil` filter registries (which skip secret args), `C_ChatInfo`, `C_RestrictedActions`, `Enum.AddOnRestrictionType`, `EventRegistry`, `LinkUtil`, `issecretvalue`/`canaccessvalue`. The tests cover:
 
