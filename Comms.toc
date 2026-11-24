@@ -1,0 +1,40 @@
+## Interface: 16001
+## Title: Comms
+## Notes: All-in-one text chat for WoW Forever: chat formatting, URL and invite links, alerts, whisper windows, chat and typed history that survive /reload, a bigger chat box with Tab completion, channel auto-leave and quick lines. Steps back in chat lockdown. By Nine Point Labs, not related to Forever Comms Voice / Guild Comms / Group Comms or Quick Comms.
+## Author: Nine Point Labs
+## Version: @project-version@
+## X-Website: https://github.com/ninepointlabs/comms
+## Category: Chat
+## IconTexture: Interface\AddOns\Comms\Media\Icon
+## SavedVariables: CommsDB
+## SavedVariablesPerCharacter: CommsCharDB
+
+Core\Init.lua
+Core\DB.lua
+Core\Lockdown.lua
+Core\Filters.lua
+Modules\Format.lua
+Modules\Links.lua
+Modules\AltInvite.lua
+Modules\Copy.lua
+Modules\Search.lua
+Modules\Alerts.lua
+Modules\Sticky.lua
+Modules\TellTarget.lua
+Modules\Channels.lua
+Modules\History.lua
+Modules\Recall.lua
+Modules\Input.lua
+Modules\Autocomplete.lua
+Modules\Whispers.lua
+Modules\QuickLines.lua
+UI\Widgets.lua
+UI\Popups.lua
+UI\Main.lua
+UI\Panels\Pages.lua
+UI\Panels\Options.lua
+UI\Panels\Setup.lua
+UI\Messenger.lua
+UI\QuickBar.lua
+UI\Minimap.lua
+Core\Boot.lua

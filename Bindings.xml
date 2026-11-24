@@ -1,0 +1,14 @@
+<Bindings>
+	<Binding name="COMMS_QUICKLINE_1" header="COMMS">Comms.QuickLine(1)</Binding>
+	<Binding name="COMMS_QUICKLINE_2">Comms.QuickLine(2)</Binding>
+	<Binding name="COMMS_QUICKLINE_3">Comms.QuickLine(3)</Binding>
+	<Binding name="COMMS_QUICKLINE_4">Comms.QuickLine(4)</Binding>
+	<Binding name="COMMS_QUICKLINE_5">Comms.QuickLine(5)</Binding>
+	<Binding name="COMMS_QUICKLINE_6">Comms.QuickLine(6)</Binding>
+	<Binding name="COMMS_QUICKLINE_7">Comms.QuickLine(7)</Binding>
+	<Binding name="COMMS_QUICKLINE_8">Comms.QuickLine(8)</Binding>
+	<Binding name="COMMS_QUICKLINE_9">Comms.QuickLine(9)</Binding>
+	<Binding name="COMMS_QUICKLINE_10">Comms.QuickLine(10)</Binding>
+	<Binding name="COMMS_OPEN_WHISPERS">Comms.OpenWhispers()</Binding>
+	<Binding name="COMMS_REPLY_LAST">Comms.ReplyLast()</Binding>
+</Bindings>
