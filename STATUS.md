@@ -2,7 +2,17 @@
 
 **What it is:** an all-in-one text chat addon for WoW Forever. It replaces the Prat + WIM + Chattynator + BigChatBox + Block Blizzard Chat Channels stack with one addon and stays out of the way in chat lockdown (dungeons, raids, battlegrounds). It's built from `BRIEF.md` (gitignored), on The Terminal List's layout, widget kit, strict-mock tests and CI/release workflow.
 
-**Repo:** https://github.com/ninepointlabs/comms (**⚠ public, not private**: the GitHub API reports `visibility: public`, and the repo's only visibility event is a `PublicEvent` at 2026-11-24T18:05:07Z, its creation time, before this work began. I didn't change it; the brief says not to touch visibility, so it's Tim's/Admin's call), branch `feature/initial-addon`, PR #1 https://github.com/ninepointlabs/comms/pull/1 against `main`. **Not merged, tagged or released.** Commits use `Nine Point Labs <179739321+ninepointlabs@users.noreply.github.com>`.
+**Repo:** https://github.com/ninepointlabs/comms (**⚠ public, not private**: the GitHub API reports `visibility: public`, and the repo's only visibility event is a `PublicEvent` at 2026-11-24T18:05:07Z, its creation time, before this work began. I didn't change it; the brief says not to touch visibility, so it's Tim's/Admin's call), branch `feature/initial-addon`, PR #1 https://github.com/ninepointlabs/comms/pull/1 against `main`. **PR not merged.** Released **v0.1.0** for OmaForge on Tim's OK (2026-11-24, "approved, tag the PR branch").
+
+**OmaForge (2026-11-24):**
+- Topics `wow-addon` + `world-of-warcraft` added; OmaForge's GitHub search requires `wow-addon`.
+- The annotated tag `v0.1.0` points at `6a7ac78`, the PR branch head at that time. **`main` doesn't contain it until PR #1 is merged.**
+- The Release workflow (BigWigs packager) passed (run 45461410079). Release: https://github.com/ninepointlabs/comms/releases/tag/v0.1.0
+  - Assets: `Comms-v0.1.0.zip` and `release.json` (`flavor: forever`, `interface: 16001`). I downloaded and checked them: TOCs say `## Version: v0.1.0`, and the zip has Core, Modules, UI, Media, Bindings.xml, LICENSE and CHANGELOG, with no tests, tools, README or STATUS.
+  - The packager's notes were replaced with a feature summary and install steps. There's no autonomix-cli line, because the release ships no Linux executables.
+- `omaforge search -c forever ninepointlabs/comms` and `omaforge search -c forever comms -p github` both list `github:ninepointlabs/comms`.
+- OmaForge's GitHub provider resolves **v0.1.0 → `Comms-v0.1.0.zip`, compat `ok`, channel stable** for the Forever client.
+- Tim installs with `omaforge install -c forever github:ninepointlabs/comms`. I did **not** run `omaforge install`. Commits use `Nine Point Labs <179739321+ninepointlabs@users.noreply.github.com>`.
 
 **Not done (not authorized):** merge, tag, release, CurseForge/Wago/WoWInterface, website, DNS, posts. Nothing was installed into the live WoW folder: `tools/install-dev.sh` only ran into a scratch folder, and it now refuses the live `_forever_` AddOns path unless `COMMS_ALLOW_LIVE=1`. WTF/SavedVariables weren't touched; the installed AddOns folder was only read (slash-command collision check).
 

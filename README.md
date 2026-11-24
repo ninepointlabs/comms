@@ -6,7 +6,7 @@ It stays out of your way in dungeons, raids and battlegrounds, where Forever loc
 
 Comms by Nine Point Labs, not related to Forever Comms Voice / Guild Comms / Group Comms or Quick Comms.
 
-> Status: v0.1 in review. Not released or listed anywhere.
+> Status: v0.1.0 released on GitHub (for OmaForge); the code is still in review (PR #1).
 
 ## Features
 
@@ -41,11 +41,13 @@ Comms never sends a chat message without a click or key press from you, and neve
 
 ## Install
 
-Not released yet. When it is (Tim's call):
+With [OmaForge](https://github.com/ninepointlabs/omaforge):
 
 ```
 omaforge install -c forever github:ninepointlabs/comms
 ```
+
+By hand: download `Comms-vX.Y.Z.zip` from [Releases](https://github.com/ninepointlabs/comms/releases), unzip it into `World of Warcraft/_forever_/Interface/AddOns/`, then `/reload` and `/comms`.
 
 For testing from a checkout, `tools/install-dev.sh` copies only the files WoW needs into a scratch folder (or a folder you name). It refuses a live WoW AddOns folder unless `COMMS_ALLOW_LIVE=1` is set.
 
