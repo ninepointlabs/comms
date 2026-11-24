@@ -2,7 +2,7 @@
 
 **What it is:** an all-in-one text chat addon for WoW Forever. It replaces the Prat + WIM + Chattynator + BigChatBox + Block Blizzard Chat Channels stack with one addon and stays out of the way in chat lockdown (dungeons, raids, battlegrounds). It's built from `BRIEF.md` (gitignored), on The Terminal List's layout, widget kit, strict-mock tests and CI/release workflow.
 
-**Repo:** https://github.com/ninepointlabs/comms (**private**), branch `feature/initial-addon`, PR #1 https://github.com/ninepointlabs/comms/pull/1 against `main`. **Not merged, tagged or released.** Commits use `Nine Point Labs <179739321+ninepointlabs@users.noreply.github.com>`.
+**Repo:** https://github.com/ninepointlabs/comms (**⚠ public, not private**: the GitHub API reports `visibility: public`, and the repo's only visibility event is a `PublicEvent` at 2026-11-24T18:05:07Z, its creation time, before this work began. I didn't change it; the brief says not to touch visibility, so it's Tim's/Admin's call), branch `feature/initial-addon`, PR #1 https://github.com/ninepointlabs/comms/pull/1 against `main`. **Not merged, tagged or released.** Commits use `Nine Point Labs <179739321+ninepointlabs@users.noreply.github.com>`.
 
 **Not done (not authorized):** merge, tag, release, CurseForge/Wago/WoWInterface, website, DNS, posts. Nothing was installed into the live WoW folder: `tools/install-dev.sh` only ran into a scratch folder, and it now refuses the live `_forever_` AddOns path unless `COMMS_ALLOW_LIVE=1`. WTF/SavedVariables weren't touched; the installed AddOns folder was only read (slash-command collision check).
 

@@ -6,7 +6,7 @@ It stays out of your way in dungeons, raids and battlegrounds, where Forever loc
 
 Comms by Nine Point Labs, not related to Forever Comms Voice / Guild Comms / Group Comms or Quick Comms.
 
-> Status: v0.1 in review. Private repo; not published anywhere.
+> Status: v0.1 in review. Not released or listed anywhere.
 
 ## Features
 
