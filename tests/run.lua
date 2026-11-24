@@ -809,13 +809,15 @@ test("quick lines: tokens %t %f %z %r; %d always prefills so Tim can type the du
     ns.db.char.role = "Tank"
     local t = ns.QuickLines.Expand("%t and %f in %z as %r")
     eq(t, "Bob and Cara-Faraway in Stormwind City as Tank")
-    local t2, typing = ns.QuickLines.Expand("LFG %d as %r")
-    eq(t2, "LFG as Tank"); eq(typing, true)
+    local t2, typing, dPos = ns.QuickLines.Expand("LFG %d as %r")
+    eq(t2, "LFG  as Tank"); eq(typing, true); eq(dPos, 4)
+    eq((ns.QuickLines.Expand("100%% sure %x")), "100%% sure %x", "unknown tokens kept")
     M.sent, M.opened = {}, {}
     S.channels.LookingForGroup = 6
     eq(ns.QuickLines.Fire(7, "click"), "prefill")
     eq(#M.sent, 0, "not sent")
-    eq(M.opened[1], "/6 LFG as Tank")
+    eq(M.opened[1], "/6 LFG  as Tank")
+    eq(M.openedCursor, #"/6 LFG ", "cursor where %d was")
     S.units.target, S.units.focus = nil, nil
     ns.db.char.role = "DPS"
 end)

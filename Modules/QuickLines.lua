@@ -51,20 +51,31 @@ function Q.LastTellTarget()
     return nil
 end
 
--- Replace tokens. Returns text, needsTyping (a %d was present).
+-- Replace tokens. Returns text, needsTyping (a %d was present), and the byte
+-- position of the first %d in the result (where the cursor should go).
 function Q.Expand(text)
-    local needsTyping = false
+    local needsTyping, dPos = false, nil
     text = tostring(text or "")
-    text = text:gsub("%%(%a)", function(c)
-        if c == "t" then return unitName("target") or "%t"
-        elseif c == "f" then return unitName("focus") or "%f"
-        elseif c == "z" then return (ns.Try(GetRealZoneText) or ns.Try(GetZoneText) or "")
-        elseif c == "r" then return ns.db.char.role or "DPS"
-        elseif c == "d" then needsTyping = true return ""
-        end
-    end)
-    text = text:gsub("  +", " ")
-    return text, needsTyping
+    local out, pos = {}, 1
+    while true do
+        local s, e, c = text:find("%%(%a)", pos)
+        if not s then break end
+        table.insert(out, text:sub(pos, s - 1))
+        local rep
+        if c == "t" then rep = unitName("target") or "%t"
+        elseif c == "f" then rep = unitName("focus") or "%f"
+        elseif c == "z" then rep = (ns.Try(GetRealZoneText) or ns.Try(GetZoneText) or "")
+        elseif c == "r" then rep = ns.db.char.role or "DPS"
+        elseif c == "d" then
+            needsTyping = true
+            rep = ""
+            if not dPos then dPos = #table.concat(out) end
+        else rep = "%" .. c end
+        table.insert(out, rep)
+        pos = e + 1
+    end
+    table.insert(out, text:sub(pos))
+    return table.concat(out), needsTyping, dPos
 end
 
 -- Where a quick line goes: chatType, target (whisper name or channel number).
@@ -116,11 +127,12 @@ function Q.Send(text, chatType, target)
     return true
 end
 
--- Put text into Blizzard's chat box (Tim presses Enter).
-function Q.Prefill(text)
+-- Put text into Blizzard's chat box (Tim presses Enter). cursor: optional
+-- byte position for the cursor.
+function Q.Prefill(text, cursor)
     local u = ChatFrameUtil
     if u and u.OpenChat then
-        ns.Try(u.OpenChat, text)
+        ns.Try(u.OpenChat, text, nil, cursor)
         return true
     elseif ChatFrame_OpenChat then
         ns.Try(ChatFrame_OpenChat, text)
@@ -146,7 +158,7 @@ function Q.Fire(n, source)
         return nil
     end
     if not Q.HW_SOURCES[source or ""] then return nil end -- never automatic
-    local text, needsTyping = Q.Expand(line.text)
+    local text, needsTyping, dPos = Q.Expand(line.text)
     local chatType, target = Q.Resolve(line)
     if not chatType then
         ns.Print("You're not in that channel.")
@@ -162,7 +174,8 @@ function Q.Fire(n, source)
         return "prefill"
     end
     if needsTyping then
-        Q.Prefill(slash)
+        local cursor = dPos and (#slash - #text + dPos) or nil
+        Q.Prefill(slash, cursor)
         return "prefill"
     end
     if Q.Send(text, chatType, target) then return "sent" end

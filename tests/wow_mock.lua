@@ -297,7 +297,7 @@ G.ChatFrameUtil = {
         table.insert(M.messageFilters[ev], fn)
     end,
     AddSenderNameFilter = function(fn) table.insert(M.nameFilters, fn) end,
-    OpenChat = function(text) table.insert(M.opened, text) end,
+    OpenChat = function(text, frame, cursor) table.insert(M.opened, text) M.openedCursor = cursor end,
     GetLastTellTarget = function() return S.lastTell end,
 }
 G.C_ChatInfo = {
