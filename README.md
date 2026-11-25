@@ -6,7 +6,7 @@ It stays out of your way in dungeons, raids and battlegrounds, where Forever loc
 
 Comms by Nine Point Labs, not related to Forever Comms Voice / Guild Comms / Group Comms or Quick Comms.
 
-> Status: v0.1.0 released on GitHub (for OmaForge); the code is still in review (PR #1).
+> Status: v0.1.0 released on GitHub (installable with OmaForge). In-game testing is still in progress.
 
 ## Features
 
