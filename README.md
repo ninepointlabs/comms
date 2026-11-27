@@ -6,7 +6,7 @@ It stays out of your way in dungeons, raids and battlegrounds, where Forever loc
 
 Comms by Nine Point Labs, not related to Forever Comms Voice / Guild Comms / Group Comms or Quick Comms.
 
-> Status: v0.1.0 released on GitHub (installable with OmaForge). In-game testing is still in progress.
+> Status: v0.2.0 released on GitHub (installable with OmaForge). In-game testing is still in progress.
 
 ## Features
 
@@ -74,6 +74,8 @@ With [OmaForge](https://github.com/ninepointlabs/omaforge):
 ```
 omaforge install -c forever github:ninepointlabs/comms
 ```
+
+Already installed: `omaforge update`.
 
 By hand: download `Comms-vX.Y.Z.zip` from [Releases](https://github.com/ninepointlabs/comms/releases), unzip it into `World of Warcraft/_forever_/Interface/AddOns/`, then `/reload` and `/comms`.
 

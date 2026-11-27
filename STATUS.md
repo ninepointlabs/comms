@@ -1,6 +1,6 @@
-# STATUS: situational quick-chat sets + Combat row (branch `feat/situational-macro-bar`, 2026-11-27)
+# STATUS: Comms v0.2.0, situational quick-chat sets + Combat row (2026-11-27)
 
-**PR:** https://github.com/ninepointlabs/comms/pull/2 (against `main`, **open, not merged, not released**). Brief: `designer-briefs/comms-situational-macro-bar.md` (Tim approved option 2, a dedicated Combat row, 2026-11-27).
+**PR:** https://github.com/ninepointlabs/comms/pull/2 **merged into `main` on 2026-11-27** (merge commit `fe3474c`, on Tim's OK). Released as **v0.2.0** (see Release below). Brief: `designer-briefs/comms-situational-macro-bar.md` (Tim approved option 2, a dedicated Combat row, 2026-11-27).
 
 **What changed**
 - `Modules/QuickSets.lua` (new): context detection (Raid / BG if `IsInRaid()`, a `pvp`/`arena` instance or `C_PvP.IsBattleground()`; Party / Dungeon in a `party` instance or a group; else Open World; any secret/missing/erroring answer keeps the current set), deferred switching in combat, session pin, per-set enable with fallback, auto on/off.

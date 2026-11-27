@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.2.0 (2026-11-27)
 
 - Situational quick-line sets: **Open World**, **Party / Dungeon** and **Raid / BG**, each with its own editable lines (up to 10). The bar switches set by context (group, dungeon, raid, battleground, arena) and only out of combat; a change in combat waits until it ends.
 - **Combat row**: a second, always-visible row (oom, inc, peel me, pulling, heal me; up to 10 lines) that never swaps in combat and stays shown with "Hide the quick-bar in combat" on. Show it always, only in groups, or off.
