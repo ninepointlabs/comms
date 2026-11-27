@@ -23,6 +23,10 @@ L.REASONS = { [0] = "combat", [1] = "encounter", [2] = "keystone", [3] = "PvP ma
 
 local active = {}   -- restriction type -> true while Activating/Active
 local wasLocked = false
+-- Between PLAYER_REGEN_DISABLED and PLAYER_REGEN_ENABLED. InCombatLockdown()
+-- still answers false inside PLAYER_REGEN_DISABLED handlers, so this covers
+-- the first moment of a fight.
+local regenDisabled = false
 
 local function restrictionType(name)
     local e = Enum and Enum.AddOnRestrictionType
@@ -50,7 +54,7 @@ function L.ChatLocked()
 end
 
 function L.CombatLocked()
-    return ns.Try(InCombatLockdown) and true or false
+    return regenDisabled or (ns.Try(InCombatLockdown) and true or false)
 end
 
 -- True when Comms must keep its hands off Blizzard's edit box.
@@ -108,6 +112,7 @@ function L.OnEvent(event, ...)
     if event == "ADDON_RESTRICTION_STATE_CHANGED" then
         L.OnRestrictionChanged(...)
     elseif event == "PLAYER_REGEN_DISABLED" or event == "PLAYER_REGEN_ENABLED" then
+        regenDisabled = event == "PLAYER_REGEN_DISABLED"
         ns.Fire("COMBAT_CHANGED", event == "PLAYER_REGEN_DISABLED")
         L.Recompute()
     else
@@ -134,4 +139,5 @@ end
 function L._Reset()
     active = {}
     wasLocked = false
+    regenDisabled = false
 end
