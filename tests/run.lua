@@ -88,18 +88,34 @@ test("TOCs identical: Interface 16001, names, SavedVariables, every file exists"
     local files = tocFiles("Comms.toc")
     eq(files[#files], "Core/Boot.lua", "Boot loads last")
     for _, f in ipairs(files) do truthy(io.open(f), "missing " .. f) end
+    -- ...and every addon .lua file is in the TOC.
+    local listed = {}
+    for _, f in ipairs(files) do listed[f] = true end
+    local p = io.popen("find Core Modules UI -name '*.lua' | sort")
+    local n = 0
+    for f in p:lines() do
+        n = n + 1
+        truthy(listed[f], "not in the TOC: " .. f)
+    end
+    p:close()
+    truthy(n >= 30 and listed["Modules/QuickSets.lua"], "found the addon files")
     truthy(io.open("Bindings.xml"), "Bindings.xml")
     truthy(io.open("LICENSE"), "LICENSE")
 end)
 
-test("Bindings.xml: Comms header, 10 quick lines, whisper window, reply; labels defined", function()
+test("Bindings.xml: Comms header, 10 quick lines, 5 combat lines, whisper window, reply; labels defined", function()
     local x = readFile("Bindings.xml")
     truthy(x:find('header="COMMS"', 1, true), "header")
     for i = 1, 10 do
-        truthy(x:find('name="COMMS_QUICKLINE_' .. i .. '"', 1, true), "binding " .. i)
-        truthy(x:find("Comms.QuickLine(" .. i .. ")", 1, true), "calls quick line " .. i)
-        eq(rawget(_G, "BINDING_NAME_COMMS_QUICKLINE_" .. i), "Quick line " .. i)
+        -- v0.1's binding names unchanged, so keys bound then still work.
+        truthy(x:find('<Binding name="COMMS_QUICKLINE_' .. i .. '"[^>]*>Comms%.QuickLine%(' .. i .. '%)</Binding>'), "binding " .. i)
+        eq(rawget(_G, "BINDING_NAME_COMMS_QUICKLINE_" .. i), "Quick line " .. i .. " (active set)")
     end
+    for i = 1, 5 do
+        truthy(x:find('<Binding name="COMMS_COMBATLINE_' .. i .. '">Comms.CombatLine(' .. i .. ')</Binding>', 1, true), "combat binding " .. i)
+        eq(rawget(_G, "BINDING_NAME_COMMS_COMBATLINE_" .. i), "Combat line " .. i)
+    end
+    truthy(not x:find("COMMS_COMBATLINE_6", 1, true), "five combat bindings")
     truthy(x:find("Comms.OpenWhispers()", 1, true) and x:find("Comms.ReplyLast()", 1, true), "whisper bindings")
     eq(BINDING_HEADER_COMMS, "Comms")
     eq(BINDING_NAME_COMMS_OPEN_WHISPERS, "Open whisper window")
@@ -207,8 +223,16 @@ test("defaults: account-wide settings, Services and Trade (City) leave on, other
     eq(s.channels.list.LocalDefense, false); eq(s.channels.list.LookingForGroup, false)
     eq(s.channels.mode, "leave")
     eq(s.history.lines, 500); eq(s.whispers.showInMain, true)
-    eq(#s.quick.lines, 10, "10 quick lines")
-    eq(s.quick.lines[1].text, "inv pls"); eq(s.quick.lines[2].text, "ty for the group!")
+    eq(s.quick.lines, nil, "no v0.1 list on a new install")
+    eq(#s.quick.sets.world.lines, 8); eq(#s.quick.sets.party.lines, 8)
+    eq(#s.quick.sets.raid.lines, 6); eq(#s.quick.sets.combat.lines, 5)
+    eq(s.quick.sets.world.lines[1].text, "hi!"); eq(s.quick.sets.world.lines[1].channel, "SAY")
+    eq(s.quick.sets.party.lines[3].text, "ty for the group!")
+    eq(s.quick.sets.combat.lines[3].text, "peel me")
+    eq(s.quick.auto, true); eq(s.quick.combatRow, "always")
+    eq(ns.db.global.schema, 2)
+    truthy(s.quick.sets.world.lines ~= ns.DB.QUICK_SETS.world, "defaults copied, not shared")
+    eq(ns.QuickSets.Active(), "world", "solo in Stormwind: Open World")
     eq(s.format.timestamps, nil, "timestamps left to Blizzard until Tim picks")
     eq(M.cvars.showTimestamps, "none", "CVar untouched")
     eq(ns.db.char.channelsOverride, nil, "no per-character override")
@@ -751,59 +775,98 @@ end)
 ----------------------------------------------------------------------------
 -- Quick lines
 ----------------------------------------------------------------------------
+local function Q() return ns.DB.Settings().quick end
+local Bar = ns.UI.QuickBar
+-- Put the world back to solo / out of combat / automatic between tests.
+local function settle()
+    S.group, S.instanceType, S.combat, S.chatLocked = nil, nil, false, false
+    rawset(_G, "C_PvP", nil)
+    ns.Lockdown.Recompute()
+    ns.QuickSets.Pick("auto")
+    M.Fire("PLAYER_REGEN_ENABLED")
+end
+local function labels(row)
+    local out = {}
+    for i, b in ipairs(row.buttons) do out[i] = (b.__shown and b.label.__text or "-") end
+    return table.concat(out, ",")
+end
+local function deepEq(a, b)
+    if type(a) ~= type(b) then return false end
+    if type(a) ~= "table" then return a == b end
+    for k, v in pairs(a) do if not deepEq(v, b[k]) then return false end end
+    for k in pairs(b) do if a[k] == nil then return false end end
+    return true
+end
+-- Run DB.Init on a scratch table without losing the live DB.
+local function initScratch(account)
+    local g, c = ns.db.global, ns.db.char
+    local a = ns.DB.Init(account, {})
+    ns.db = { global = g, char = c }
+    ns.DB.global, ns.DB.char = g, c
+    return a
+end
+
 test("quick lines: auto channel picks INSTANCE > RAID > PARTY > SAY; click sends", function()
+    settle()
     M.sent = {}
-    S.group = nil
-    eq(ns.QuickLines.Fire(2, "click"), "sent")
-    eq(M.sent[1].chatType, "SAY")
+    eq(ns.QuickLines.Fire(3, "click"), "sent")
+    eq(M.sent[1].chatType, "SAY"); eq(M.sent[1].text, "ty!")
     S.group = "party"
-    ns.QuickLines.Fire(2, "click")
+    ns.QuickLines.Fire(3, "click")
     eq(M.sent[2].chatType, "PARTY")
     S.group = "raid"
-    ns.QuickLines.Fire(2, "click")
+    ns.QuickLines.Fire(3, "click")
     eq(M.sent[3].chatType, "RAID")
     S.group = "instance"
-    ns.QuickLines.Fire(9, "key")
+    ns.QuickLines.Fire(3, "key")
     eq(M.sent[4].chatType, "INSTANCE_CHAT")
-    eq(M.sent[4].text, "gg")
     S.group = nil
 end)
 
 test("quick lines: only click/key/slash can fire; never automatic", function()
+    settle()
     M.sent = {}
-    eq(ns.QuickLines.Fire(3, nil), nil)
-    eq(ns.QuickLines.Fire(3, "timer"), nil)
-    eq(ns.QuickLines.Fire(3, "event"), nil)
+    eq(ns.QuickLines.Fire(7, nil), nil)
+    eq(ns.QuickLines.Fire(7, "timer"), nil)
+    eq(ns.QuickLines.Fire(7, "event"), nil)
+    eq(ns.QuickLines.Fire(1, "event", "combat"), nil)
     eq(#M.sent, 0)
-    eq(Comms.QuickLine(3), "sent", "key binding path")
+    eq(Comms.QuickLine(7), "sent", "key binding path")
     eq(M.sent[1].text, "brb")
     eq(SlashCmdList.COMMS("q 4"), nil) -- slash returns nothing to the client
-    eq(M.sent[2].text, "back", "/comms q 4")
+    eq(M.sent[2].text, "thanks for the help!", "/comms q 4 fires slot 4 of the active set")
+    M.printed = {}
+    eq(Comms.QuickLine(9), nil, "empty slot")
+    truthy(printed("Quick line 9 of Open World is empty"))
 end)
 
 test("quick lines: whisper to target / last whisperer, else SAY; EMOTE and CHANNEL types", function()
+    settle()
     M.sent = {}
     S.units.target = { name = "Bob", realm = "Other Realm" }
-    ns.QuickLines.Fire(1, "click")
+    ns.QuickLines.Fire(6, "click")
     eq(M.sent[1].chatType, "WHISPER"); eq(M.sent[1].target, "Bob-Other Realm"); eq(M.sent[1].text, "inv pls")
     S.units.target = nil
     S.lastTell = "Cara"
-    ns.QuickLines.Fire(1, "click")
+    ns.QuickLines.Fire(6, "click")
     eq(M.sent[2].target, "Cara", "last whisperer")
     S.lastTell = nil
-    ns.QuickLines.Fire(1, "click")
+    ns.QuickLines.Fire(6, "click")
     eq(M.sent[3].chatType, "SAY", "nobody to whisper: SAY")
-    ns.QuickLines.Fire(10, "click")
+    ns.QuickLines.Fire(2, "click")
     eq(M.sent[4].chatType, "EMOTE"); eq(M.sent[4].text, "waves.")
+    ns.QuickLines.Fire(1, "click")
+    eq(M.sent[5].chatType, "SAY"); eq(M.sent[5].text, "hi!")
     S.channels.LookingForGroup = 6
-    local line = ns.QuickLines.Lines()[7]
+    local line = ns.QuickLines.Lines("world")[8]
     line.text = "LFM BFD need %r"
-    ns.QuickLines.Fire(7, "click")
-    eq(M.sent[5].chatType, "CHANNEL"); eq(M.sent[5].target, 6); eq(M.sent[5].text, "LFM BFD need DPS")
+    ns.QuickLines.Fire(8, "click")
+    eq(M.sent[6].chatType, "CHANNEL"); eq(M.sent[6].target, 6); eq(M.sent[6].text, "LFM BFD need DPS")
     line.text = "LFG %d as %r"
 end)
 
 test("quick lines: tokens %t %f %z %r; %d always prefills so Tim can type the dungeon", function()
+    settle()
     S.units.target = { name = "Bob" }
     S.units.focus = { name = "Cara", realm = "Faraway" }
     ns.db.char.role = "Tank"
@@ -814,7 +877,7 @@ test("quick lines: tokens %t %f %z %r; %d always prefills so Tim can type the du
     eq((ns.QuickLines.Expand("100%% sure %x")), "100%% sure %x", "unknown tokens kept")
     M.sent, M.opened = {}, {}
     S.channels.LookingForGroup = 6
-    eq(ns.QuickLines.Fire(7, "click"), "prefill")
+    eq(ns.QuickLines.Fire(8, "click"), "prefill")
     eq(#M.sent, 0, "not sent")
     eq(M.opened[1], "/6 LFG  as Tank")
     eq(M.openedCursor, #"/6 LFG ", "cursor where %d was")
@@ -822,51 +885,467 @@ test("quick lines: tokens %t %f %z %r; %d always prefills so Tim can type the du
     ns.db.char.role = "DPS"
 end)
 
-test("quick lines: in chat lockdown nothing calls SendChatMessage; OpenChat is prefilled", function()
+test("quick lines: in chat lockdown no set or Combat line calls SendChatMessage; OpenChat is prefilled", function()
+    settle()
     S.chatLocked = true
-    S.group = "instance"
+    S.group, S.instanceType = "instance", "party"
     ns.Lockdown.Recompute()
+    M.Fire("ZONE_CHANGED_NEW_AREA")
+    eq(ns.QuickSets.Active(), "party")
     M.sent, M.opened = {}, {}
-    for i = 1, 10 do ns.QuickLines.Fire(i, "click") end
-    Comms.QuickLine(2)
-    SlashCmdList.COMMS("q 9")
+    for _, key in ipairs({ "world", "party", "raid", "combat" }) do
+        for i = 1, 10 do ns.QuickLines.Fire(i, "click", key) end
+    end
+    for i = 1, 10 do Comms.QuickLine(i) end
+    for i = 1, 5 do Comms.CombatLine(i) end
+    SlashCmdList.COMMS("q 8")
     eq(#M.sent, 0, "no SendChatMessage in lockdown")
     truthy(has(M.opened, "/i ty for the group!"), "prefilled with the slash form")
     truthy(has(M.opened, "/i gg"))
     truthy(has(M.opened, "/e waves."))
+    truthy(has(M.opened, "/i oom") and has(M.opened, "/i peel me"), "combat lines prefill")
+    truthy(has(M.opened, "/i ready"), "binding fired the active (party) set")
     -- "show" mode: copy box instead.
-    ns.DB.Settings().quick.lockdownAction = "show"
+    Q().lockdownAction = "show"
     M.popups = {}
-    eq(ns.QuickLines.Fire(2, "click"), "shown")
+    eq(ns.QuickLines.Fire(3, "click"), "shown")
     eq(M.popups[#M.popups].data, "/i ty for the group!")
-    ns.DB.Settings().quick.lockdownAction = "prefill"
+    Q().lockdownAction = "prefill"
+    -- Bar clicks in lockdown prefill too.
+    M.opened = {}
+    local cb = CommsQuickBar.combat.buttons[1]
+    cb.__scripts.OnClick(cb, "LeftButton")
+    eq(M.opened[1], "/i oom")
     -- Direct send refuses too.
     eq(ns.QuickLines.Send("x", "PARTY"), false)
     eq(#M.sent, 0)
-    S.chatLocked = false
-    S.group = nil
-    ns.Lockdown.Recompute()
+    settle()
 end)
 
-test("quick-bar: 10 buttons, click fires its line, labels and key bindings shown", function()
+test("quick sets: context detection (solo, party, party instance, raid, BG, arena, C_PvP, secret, missing)", function()
+    settle()
+    local D = ns.QuickSets.Detect
+    local cases = {
+        { nil, nil, "world", "solo" },
+        { "party", nil, "party", "party in the open world" },
+        { "instance", "party", "party", "LFG dungeon" },
+        { "party", "party", "party", "premade dungeon" },
+        { nil, "party", "party", "solo in a dungeon" },
+        { "raid", nil, "raid", "raid group" },
+        { "raid", "raid", "raid", "raid instance" },
+        { nil, "raid", "world", "solo in an old raid: not a group" },
+        { "instance", "pvp", "raid", "battleground" },
+        { "instance", "arena", "raid", "arena" },
+        { nil, "scenario", "world", "solo scenario" },
+    }
+    for _, c in ipairs(cases) do
+        S.group, S.instanceType = c[1], c[2]
+        eq(D(), c[3], c[4])
+    end
+    S.group, S.instanceType = nil, nil
+    rawset(_G, "C_PvP", { IsBattleground = function() return true end })
+    eq(D(), "raid", "C_PvP.IsBattleground")
+    rawset(_G, "C_PvP", { IsBattleground = function() return M.SECRET end })
+    eq(D(), "world", "secret C_PvP answer ignored")
+    rawset(_G, "C_PvP", nil)
+    local realInInstance, realInRaid, realInGroup = IsInInstance, IsInRaid, IsInGroup
+    rawset(_G, "IsInInstance", function() return M.SECRET, M.SECRET end)
+    eq(D(), nil, "secret instance: unknown")
+    S.group = "raid"
+    eq(D(), "raid", "raid group still known")
+    S.group = nil
+    rawset(_G, "IsInInstance", realInInstance)
+    rawset(_G, "IsInRaid", function() return M.SECRET end)
+    eq(D(), nil, "secret raid: unknown")
+    rawset(_G, "IsInRaid", function() error("boom") end)
+    eq(D(), nil, "erroring API: unknown")
+    rawset(_G, "IsInRaid", realInRaid)
+    rawset(_G, "IsInGroup", function() return M.SECRET end)
+    eq(D(), nil, "secret group: unknown")
+    rawset(_G, "IsInGroup", realInGroup)
+    eq(D(), "world")
+
+    -- Events switch the set; unknown keeps the current one.
+    S.group = "party"
+    M.Fire("GROUP_ROSTER_UPDATE")
+    eq(ns.QuickSets.Active(), "party")
+    eq(CommsQuickBar.tab.label.__text, "Party")
+    eq(CommsQuickBar.main.buttons[1].label.__text, "ready")
+    rawset(_G, "IsInInstance", function() return M.SECRET, M.SECRET end)
+    S.group = nil
+    M.Fire("ZONE_CHANGED_NEW_AREA")
+    eq(ns.QuickSets.Active(), "party", "secret context: kept the current set")
+    rawset(_G, "IsInInstance", realInInstance)
+    S.group, S.instanceType = "instance", "pvp"
+    M.Fire("PLAYER_ENTERING_WORLD")
+    eq(ns.QuickSets.Active(), "raid")
+    eq(CommsQuickBar.main.buttons[1].label.__text, "inc")
+    eq(CommsQuickBar.main.buttons[7].__shown, false, "raid set has 6 lines: slot 7 hidden")
+    settle()
+    eq(ns.QuickSets.Active(), "world")
+    eq(labels(CommsQuickBar.main), "hi,wave,ty,thx,group?,inv,brb,LFG,-,-")
+end)
+
+test("quick sets: a context change in combat waits for PLAYER_REGEN_ENABLED; no re-layout in combat", function()
+    settle()
     local bar = CommsQuickBar
-    truthy(bar, "bar built")
-    eq(#bar.buttons, 10)
-    eq(bar.buttons[1].label.__text, "inv")
-    S.bindings.COMMS_QUICKLINE_2 = "CTRL-2"
-    M.Fire("UPDATE_BINDINGS")
-    truthy(bar.buttons[2].tip:find("CTRL-2", 1, true), "binding in tooltip")
-    M.sent = {}
-    bar.buttons[3].__scripts.OnClick(bar.buttons[3], "LeftButton")
-    eq(M.sent[1].text, "brb")
-    ns.DB.Settings().quick.barHideInCombat = true
     S.combat = true
     M.Fire("PLAYER_REGEN_DISABLED")
-    eq(bar.__shown, false, "hidden in combat")
+    local n0, before, beforeC = Bar.layouts, labels(bar.main), labels(bar.combat)
+    S.group = "party"
+    M.Fire("GROUP_ROSTER_UPDATE")
+    S.group, S.instanceType = "instance", "party"
+    M.Fire("ZONE_CHANGED_NEW_AREA")
+    M.Fire("PLAYER_ENTERING_WORLD")
+    M.Fire("UPDATE_BINDINGS")
+    Bar.Refresh()
+    ns.QuickLines.Lines("world")[1].label = "HELLO"   -- an edit in combat
+    Bar.Refresh()
+    eq(ns.QuickSets.Active(), "world", "still the old set")
+    eq(ns.QuickSets.Pending(), "party", "recorded")
+    eq(Bar.layouts, n0, "no layout in combat")
+    eq(labels(bar.main), before, "buttons untouched")
+    eq(labels(bar.combat), beforeC)
+    truthy(Bar.dirty, "re-layout owed")
+    M.sent = {}
+    Comms.QuickLine(1) -- keys fire what the bar shows
+    eq(M.sent[1].text, "hi!")
+    M.printed = {}
+    bar.tab.__scripts.OnClick(bar.tab, "LeftButton")
+    truthy(printed("out of combat only"), "tab refuses in combat")
+    eq(ns.QuickSets.Pinned(), nil)
     S.combat = false
     M.Fire("PLAYER_REGEN_ENABLED")
+    eq(ns.QuickSets.Active(), "party", "applied after combat")
+    eq(ns.QuickSets.Pending(), nil)
+    truthy(Bar.layouts > n0, "laid out after combat")
+    eq(bar.main.buttons[1].label.__text, "ready")
+    ns.QuickLines.Lines("world")[1].label = "hi"
+    -- /reload in the middle of a fight: a set and a laid-out bar at once.
+    S.combat = true
+    M.Fire("PLAYER_REGEN_DISABLED")
+    S.group, S.instanceType = "raid", nil
+    ns.QuickSets._Reset()
+    ns.QuickSets.Init()
+    eq(ns.QuickSets.Active(), "raid", "first pick applies in combat")
+    bar.laidOut = false
+    local n1 = Bar.layouts
+    Bar.Refresh()
+    eq(Bar.layouts, n1 + 1, "first layout runs in combat")
+    eq(bar.main.buttons[1].label.__text, "inc")
+    Bar.Refresh()
+    eq(Bar.layouts, n1 + 1, "but only the first")
+    S.combat = false
+    M.Fire("PLAYER_REGEN_ENABLED")
+    S.group = "instance"
+    S.instanceType = "party"
+    M.Fire("GROUP_ROSTER_UPDATE")
+    eq(ns.QuickSets.Active(), "party")
+    -- Back and forth in combat: nothing pending when it ends where it began.
+    S.combat = true
+    M.Fire("PLAYER_REGEN_DISABLED")
+    S.group, S.instanceType = nil, nil
+    M.Fire("GROUP_ROSTER_UPDATE")
+    eq(ns.QuickSets.Pending(), "world")
+    S.group, S.instanceType = "instance", "party"
+    M.Fire("GROUP_ROSTER_UPDATE")
+    eq(ns.QuickSets.Pending(), nil, "back to the active set")
+    settle()
+end)
+
+test("quick-bar: Combat row always visible in combat (also with hide in combat); row modes apply out of combat", function()
+    settle()
+    local bar = CommsQuickBar
+    truthy(bar, "bar built")
+    eq(#bar.main.buttons, 10); eq(#bar.combat.buttons, 10)
+    eq(labels(bar.combat), "oom,inc,peel,pull,heal,-,-,-,-,-")
+    eq(bar.combat.__shown, true)
+    S.bindings.COMMS_QUICKLINE_2 = "CTRL-2"
+    S.bindings.COMMS_COMBATLINE_1 = "SHIFT-1"
+    M.Fire("UPDATE_BINDINGS")
+    truthy(bar.main.buttons[2].tip:find("CTRL-2", 1, true), "binding in tooltip")
+    truthy(bar.combat.buttons[1].tip:find("SHIFT-1", 1, true), "combat binding in tooltip")
+    truthy(bar.combat.buttons[1].tip:find("In dungeons/raids/BGs this fills the chat box; press Enter.", 1, true), "combat tip")
+    truthy(not bar.main.buttons[2].tip:find("fills the chat box", 1, true), "Open World tip has no lockdown note")
+    truthy(bar.main.buttons[2].tip:find("active set", 1, true), "binding note")
+    M.sent = {}
+    bar.main.buttons[7].__scripts.OnClick(bar.main.buttons[7], "LeftButton")
+    eq(M.sent[1].text, "brb")
+    bar.combat.buttons[3].__scripts.OnClick(bar.combat.buttons[3], "LeftButton")
+    eq(M.sent[2].text, "peel me")
+    Q().barHideInCombat = true
+    S.combat = true
+    M.Fire("PLAYER_REGEN_DISABLED")
+    eq(bar.main.__shown, false, "situational row hidden in combat")
+    eq(bar.combat.__shown, true, "Combat row stays")
     eq(bar.__shown, true)
-    ns.DB.Settings().quick.barHideInCombat = false
+    bar.combat.buttons[1].__scripts.OnClick(bar.combat.buttons[1], "LeftButton")
+    eq(M.sent[3].text, "oom", "Combat row fires in combat")
+    -- As in the client, InCombatLockdown() is still false inside
+    -- PLAYER_REGEN_DISABLED: the bar must hide row 1 anyway.
+    S.combat = false
+    M.Fire("PLAYER_REGEN_ENABLED")
+    eq(bar.main.__shown, true)
+    M.Fire("PLAYER_REGEN_DISABLED")
+    eq(bar.main.__shown, false, "hidden on PLAYER_REGEN_DISABLED before InCombatLockdown() is true")
+    eq(bar.combat.__shown, true)
+    S.combat = true
+    -- Row mode changed in combat: applied after.
+    Q().combatRow = "off"
+    Bar.Refresh()
+    eq(bar.combat.__shown, true, "not hidden mid-fight")
+    S.combat = false
+    M.Fire("PLAYER_REGEN_ENABLED")
+    eq(bar.main.__shown, true)
+    eq(bar.combat.__shown, false, "off after combat")
+    S.combat = true
+    M.Fire("PLAYER_REGEN_DISABLED")
+    eq(bar.main.__shown, false); eq(bar.combat.__shown, false, "off + hide in combat: nothing")
+    S.combat = false
+    M.Fire("PLAYER_REGEN_ENABLED")
+    Q().barHideInCombat = false
+    -- Only in groups.
+    Q().combatRow = "groups"
+    Bar.Refresh()
+    eq(bar.combat.__shown, false, "solo: hidden")
+    S.group = "party"
+    M.Fire("GROUP_ROSTER_UPDATE")
+    eq(bar.combat.__shown, true, "in a group: shown")
+    S.combat = true
+    M.Fire("PLAYER_REGEN_DISABLED")
+    S.group = nil
+    M.Fire("GROUP_ROSTER_UPDATE")
+    eq(bar.combat.__shown, true, "left the group mid-fight: stays")
+    S.combat = false
+    M.Fire("PLAYER_REGEN_ENABLED")
+    eq(bar.combat.__shown, false, "hidden after combat")
+    Q().combatRow = "always"
+    -- Up to 10 Combat lines.
+    local cl = Q().sets.combat.lines
+    for i = 6, 10 do cl[i] = { label = "c" .. i, text = "c" .. i, channel = "auto" } end
+    Bar.Refresh()
+    eq(bar.combat.buttons[10].label.__text, "c10")
+    for i = 10, 6, -1 do cl[i] = nil end
+    Bar.Refresh()
+    -- Bar off hides all.
+    Q().bar = false
+    Bar.Refresh()
+    eq(bar.__shown, false)
+    Q().bar = true
+    Bar.Refresh()
+    eq(bar.__shown, true)
+    settle()
+end)
+
+test("quick sets: bindings fire the active set's slot and Combat slots", function()
+    settle()
+    S.group = "party"
+    M.Fire("GROUP_ROSTER_UPDATE")
+    M.sent = {}
+    eq(Comms.QuickLine(1), "sent")
+    eq(M.sent[1].text, "ready"); eq(M.sent[1].chatType, "PARTY")
+    eq(Comms.CombatLine(3), "sent")
+    eq(M.sent[2].text, "peel me"); eq(M.sent[2].chatType, "PARTY")
+    S.group = "raid"
+    M.Fire("GROUP_ROSTER_UPDATE")
+    eq(Comms.QuickLine(2), "sent")
+    eq(M.sent[3].text, "help!"); eq(M.sent[3].chatType, "RAID")
+    M.printed = {}
+    eq(Comms.CombatLine(6), nil)
+    truthy(printed("of Combat is empty"))
+    settle()
+end)
+
+test("quick sets: /comms set pins, auto clears; per-set enable; tab cycles; pin ends at login", function()
+    settle()
+    M.printed = {}
+    SlashCmdList.COMMS("set party")
+    eq(ns.QuickSets.Active(), "party"); eq(ns.QuickSets.Pinned(), "party")
+    truthy(printed("Party / Dungeon, pinned"))
+    eq(CommsQuickBar.tab.label.__text, "Party*")
+    S.group = "raid"
+    M.Fire("GROUP_ROSTER_UPDATE")
+    eq(ns.QuickSets.Active(), "party", "pin holds")
+    SlashCmdList.COMMS("set auto")
+    eq(ns.QuickSets.Active(), "raid"); eq(ns.QuickSets.Pinned(), nil)
+    SlashCmdList.COMMS("set bg")
+    eq(ns.QuickSets.Pinned(), "raid", "alias")
+    M.printed = {}
+    SlashCmdList.COMMS("set nonsense")
+    truthy(printed("Usage: /comms set"))
+    SlashCmdList.COMMS("set")
+    truthy(printed("Quick lines: Raid / BG"))
+    -- In combat: recorded, applied after.
+    S.combat = true
+    M.Fire("PLAYER_REGEN_DISABLED")
+    M.printed = {}
+    SlashCmdList.COMMS("set world")
+    eq(ns.QuickSets.Active(), "raid")
+    truthy(printed("switches to Open World when combat ends"))
+    S.combat = false
+    M.Fire("PLAYER_REGEN_ENABLED")
+    eq(ns.QuickSets.Active(), "world")
+    -- A login (or /reload) clears the pin.
+    ns.QuickSets.Init()
+    eq(ns.QuickSets.Pinned(), nil); eq(ns.QuickSets.Active(), "raid")
+    -- Tab: click cycles (pins), right-click back to auto.
+    local tab = CommsQuickBar.tab
+    tab.__scripts.OnClick(tab, "LeftButton")
+    eq(ns.QuickSets.Active(), "world"); eq(ns.QuickSets.Pinned(), "world")
+    tab.__scripts.OnClick(tab, "LeftButton")
+    eq(ns.QuickSets.Active(), "party")
+    tab.__scripts.OnClick(tab, "RightButton")
+    eq(ns.QuickSets.Active(), "raid"); eq(ns.QuickSets.Pinned(), nil)
+    -- Per-set enable: Raid / BG off falls back to Party / Dungeon.
+    Q().sets.raid.enabled = false
+    ns.QuickSets.Evaluate()
+    eq(ns.QuickSets.Active(), "party")
+    tab.__scripts.OnClick(tab, "LeftButton")
+    tab.__scripts.OnClick(tab, "LeftButton")
+    truthy(ns.QuickSets.Active() ~= "raid", "cycle skips a set that's off")
+    Q().sets.raid.enabled = true
+    -- Turning auto off keeps what's on the bar.
+    SlashCmdList.COMMS("set auto")
+    S.group = "party"
+    M.Fire("GROUP_ROSTER_UPDATE")
+    ns.QuickSets.SetAuto(false)
+    eq(ns.QuickSets.Active(), "party"); eq(Q().lastPicked, "party")
+    S.group = nil
+    M.Fire("GROUP_ROSTER_UPDATE")
+    eq(ns.QuickSets.Active(), "party", "manual: no auto switch")
+    ns.QuickSets.SetAuto(true)
+    eq(ns.QuickSets.Active(), "world")
+    -- Auto off: the last pick, kept across logins.
+    SlashCmdList.COMMS("set world")
+    Q().auto = false
+    ns.QuickSets.Init()
+    eq(ns.QuickSets.Active(), "world", "manual mode keeps the last pick")
+    eq(Q().lastPicked, "world")
+    Q().auto = true
+    -- Every situational set off: row 1 empty, Combat row still there.
+    for _, k in ipairs({ "world", "party", "raid" }) do Q().sets[k].enabled = false end
+    ns.QuickSets.Evaluate()
+    eq(ns.QuickSets.Active(), nil)
+    eq(CommsQuickBar.tab.label.__text, "Off")
+    eq(CommsQuickBar.combat.__shown, true)
+    M.printed = {}
+    eq(Comms.QuickLine(1), nil)
+    truthy(printed("of the active set is empty"))
+    for _, k in ipairs({ "world", "party", "raid" }) do Q().sets[k].enabled = true end
+    settle()
+    eq(ns.QuickSets.Active(), "world")
+end)
+
+test("quick-lines editor: add, remove, reset a line and a set; edits reach the bar out of combat", function()
+    settle()
+    local function click(label)
+        local pool = CommsMainFrame.views.quick.layout.pools.btn or {}
+        for i = #pool, 1, -1 do
+            local b = pool[i]
+            if b.__shown and b.label.__text == label then b.__scripts.OnClick(b) return true end
+        end
+        error("no button " .. label)
+    end
+    ns.UI.Open("quick", "combat")
+    local lines = Q().sets.combat.lines
+    click("Add a line")
+    eq(#lines, 6)
+    lines[6].text, lines[6].label = "stun", "stun"
+    ns.UI.QuickBar.Refresh()
+    eq(CommsQuickBar.combat.buttons[6].label.__text, "stun")
+    click("Remove") -- the last line's Remove (pool order = line order)
+    eq(#lines, 5)
+    lines[1].text = "low mana"
+    click("Reset this set")
+    eq(#lines, 5); eq(lines[1].text, "oom")
+    truthy(lines[1] ~= ns.DB.QUICK_SETS.combat[1], "reset copies the defaults")
+    for _ = #lines + 1, 10 do click("Add a line") end
+    eq(#lines, 10)
+    ns.UI.Refresh()
+    local ok = pcall(click, "Add a line")
+    eq(ok, false, "no Add past 10 lines")
+    click("Reset this set")
+    eq(#lines, 5)
+    settle()
+end)
+
+test("migration v0.1 -> schema 2: untouched defaults, edited lines, idempotent, arrays never merged", function()
+    local V1 = ns.DB.QUICK_DEFAULTS_V1
+    -- Untouched v0.1 lines (with a stray target on an auto line): new defaults.
+    local v1 = ns.DB.CopyLines(V1)
+    v1[2].target = "auto"
+    local a = initScratch({ schema = 1, settings = { quick = { lines = v1, bar = true, barHideInCombat = true } } })
+    eq(a.schema, 2)
+    local q = a.settings.quick
+    eq(q.migratedV1, "defaults")
+    eq(q.sets.world.lines[1].text, "hi!"); eq(q.sets.party.lines[1].text, "ready")
+    eq(q.sets.raid.lines[1].text, "inc"); eq(q.sets.combat.lines[1].text, "oom")
+    eq(q.lines, v1, "old key kept readable"); eq(#q.lines, 10)
+    eq(q.barHideInCombat, true, "other settings kept")
+    -- Edited v0.1 lines: copied into Open World and Party / Dungeon.
+    local edited = ns.DB.CopyLines(V1)
+    edited[2].text = "ty all <3"
+    table.remove(edited, 10)
+    a = initScratch({ schema = 1, settings = { quick = { lines = edited } } })
+    q = a.settings.quick
+    eq(q.migratedV1, "edited")
+    for _, k in ipairs({ "world", "party" }) do
+        eq(#q.sets[k].lines, 9, k .. " has Tim's 9 lines")
+        eq(q.sets[k].lines[2].text, "ty all <3", k)
+        eq(q.sets[k].lines[1].text, "inv pls", k)
+        eq(q.sets[k].enabled, true, k .. " enabled filled in")
+    end
+    truthy(q.sets.world.lines ~= q.sets.party.lines and q.sets.world.lines ~= q.lines, "separate copies")
+    truthy(q.sets.world.lines[1] ~= q.lines[1], "line tables copied")
+    eq(q.sets.raid.lines[2].text, "help!", "Raid / BG: new defaults")
+    eq(#q.sets.combat.lines, 5, "Combat: new defaults")
+    eq(q.lines[2].text, "ty all <3", "old key kept")
+    -- Idempotent: running again (next login) changes nothing, even after Tim
+    -- edits a set.
+    q.sets.world.lines[1].text = "yo"
+    local snapshot = ns.DB.CopyLines(q.sets.world.lines)
+    local function dump(t)
+        local keys = {}
+        for k in pairs(t) do table.insert(keys, tostring(k)) end
+        table.sort(keys)
+        local out = {}
+        for _, k in ipairs(keys) do
+            local v = t[k] == nil and t[tonumber(k)] or t[k]
+            table.insert(out, k .. "=" .. (type(v) == "table" and ("{" .. dump(v) .. "}") or tostring(v)))
+        end
+        return table.concat(out, ",")
+    end
+    local before = dump(a)
+    a = initScratch(a)
+    eq(dump(a), before, "second Init changes nothing")
+    ns.DB.Migrate(a)
+    eq(dump(a), before, "second Migrate changes nothing")
+    truthy(deepEq(a.settings.quick.sets.world.lines, snapshot))
+    -- No schema but saved settings = v0.1.
+    edited = ns.DB.CopyLines(V1)
+    edited[1].channel = "SAY"
+    a = initScratch({ settings = { quick = { lines = edited } } })
+    eq(a.settings.quick.sets.world.lines[1].channel, "SAY")
+    eq(a.schema, 2)
+    -- Fresh install: nothing to migrate, no v0.1 key.
+    a = initScratch({})
+    eq(a.settings.quick.lines, nil); eq(a.settings.quick.migratedV1, nil); eq(a.schema, 2)
+    -- deepDefaults never merges default lines into an edited (shorter) list.
+    a = initScratch({ schema = 2, settings = { quick = { sets = {
+        world = { lines = { { label = "x", text = "x", channel = "SAY" } } },
+        combat = { lines = {} },
+    } } } })
+    q = a.settings.quick
+    eq(#q.sets.world.lines, 1, "one line stays one line")
+    eq(q.sets.world.lines[1].text, "x")
+    eq(q.sets.world.lines[2], nil)
+    eq(#q.sets.combat.lines, 0, "an emptied list stays empty")
+    eq(#q.sets.party.lines, 8, "missing set gets its defaults")
+    eq(q.sets.world.enabled, true)
+    eq(q.combatRow, "always")
+    -- The live DB is unharmed.
+    eq(ns.db.global, CommsDB)
+    eq(ns.DB.Settings().quick.sets.world.lines[1].text, "hi!")
 end)
 
 ----------------------------------------------------------------------------
@@ -988,6 +1467,25 @@ test("every page and settings tab renders without errors (unlocked, locked, in c
     M.texts = {}
     ns.UI.Open("settings", "About")
     truthy(textHas("not related to Forever Comms Voice / Guild Comms / Group Comms or Quick Comms"), "disclaimer")
+    -- Each quick-line set's editor, in and out of combat.
+    for _, inCombat in ipairs({ false, true }) do
+        S.combat = inCombat
+        for _, k in ipairs(ns.DB.SET_KEYS) do
+            M.texts = {}
+            ns.UI.Open("quick", k)
+            truthy(not textHas("This panel hit an error"), "quick/" .. k .. ": " .. table.concat(M.texts, " | "))
+            truthy(textHas(ns.QuickSets.NAMES[k]), "set tab " .. k)
+        end
+        M.texts = {}
+        ns.UI.Open("settings", "Quick lines")
+        truthy(not textHas("This panel hit an error"), "settings/Quick lines")
+        truthy(textHas("Switch sets automatically") and textHas("the Combat row still shows in combat"), "set options shown")
+    end
+    S.combat = false
+    M.texts = {}
+    ns.UI.Open("quick", "combat")
+    truthy(textHas("Combat line 1-5"), "combat editor explains its keys")
+    truthy(textHas("In dungeons/raids/BGs these fill the chat box; press Enter."), "lockdown note")
     truthy(textHas("Chat locked: no"))
 end)
 
