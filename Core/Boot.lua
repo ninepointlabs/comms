@@ -3,7 +3,10 @@ local ADDON, ns = ...
 
 -- Key binding labels (Esc › Options › Keybindings › AddOns › Comms).
 BINDING_HEADER_COMMS = "Comms"
-for i = 1, 10 do _G["BINDING_NAME_COMMS_QUICKLINE_" .. i] = "Quick line " .. i end
+-- Quick line n fires slot n of the active situational set (World / Party /
+-- Raid); the binding names are v0.1's, so keys bound then still work.
+for i = 1, 10 do _G["BINDING_NAME_COMMS_QUICKLINE_" .. i] = "Quick line " .. i .. " (active set)" end
+for i = 1, 5 do _G["BINDING_NAME_COMMS_COMBATLINE_" .. i] = "Combat line " .. i end
 BINDING_NAME_COMMS_OPEN_WHISPERS = "Open whisper window"
 BINDING_NAME_COMMS_REPLY_LAST = "Reply to last whisper"
 
@@ -68,11 +71,12 @@ local function OnLogin()
     ns.UI.MinimapButton()
     ns.UI.RegisterCompartment()
     ns.UI.RegisterSettings()
+    ns.QuickSets.Init()
     ns.UI.QuickBar.Refresh()
 
     for _, ev in ipairs(ns.Lockdown.EVENTS) do pcall(f.RegisterEvent, f, ev) end
     for _, ev in ipairs(ns.Whispers.EVENTS) do pcall(f.RegisterEvent, f, ev) end
-    for _, ev in ipairs({ "CHANNEL_UI_UPDATE", "UPDATE_BINDINGS" }) do pcall(f.RegisterEvent, f, ev) end
+    for _, ev in ipairs({ "CHANNEL_UI_UPDATE", "UPDATE_BINDINGS", "GROUP_ROSTER_UPDATE" }) do pcall(f.RegisterEvent, f, ev) end
 
     if not ns.db.global.firstRunDone and not ns.Lockdown.Busy() then
         C_Timer.After(3, function()
@@ -109,6 +113,13 @@ function ns.Events.Dispatch(event, ...)
     elseif event == "PLAYER_REGEN_ENABLED" then
         RunDeferred()
     end
+    -- Situational quick-line sets: re-read the context (deferred in combat,
+    -- applied here on PLAYER_REGEN_ENABLED).
+    if event == "PLAYER_ENTERING_WORLD" or event == "ZONE_CHANGED_NEW_AREA" or event == "GROUP_ROSTER_UPDATE"
+        or event == "PLAYER_REGEN_ENABLED" then
+        ns.QuickSets.Evaluate()
+        if event == "GROUP_ROSTER_UPDATE" then ns.UI.QuickBar.Refresh() end -- Combat row "only in groups"
+    end
 end
 
 f:SetScript("OnEvent", function(_, event, ...) ns.Events.Dispatch(event, ...) end)
@@ -133,7 +144,8 @@ ns.Commands = Cmd
 function Cmd.Help()
     ns.Print("/comms  open or close the window")
     ns.Print("/comms whispers · quick · settings · channels · search <text>")
-    ns.Print("/comms q <n>  fire quick line n (in chat lockdown: press Enter after)")
+    ns.Print("/comms q <n>  fire quick line n of the active set (in chat lockdown: press Enter after)")
+    ns.Print("/comms set world · party · raid · auto  pick (pin) a quick-line set, or back to automatic")
     ns.Print("/comms leave · /comms rejoin  auto-leave channels now / rejoin them")
     ns.Print("/comms history clear · /comms setup · /comms help")
     ns.Print("/tt [message]  whisper your target")
@@ -168,6 +180,20 @@ function ns.Slash(msg)
         return n
     elseif cmd == "q" or cmd == "quickline" then
         return ns.QuickLines.Fire(tonumber(rest), "slash")
+    elseif cmd == "set" then
+        local key = rest:lower()
+        if key == "" then
+            ns.Print(ns.QuickSets.Describe())
+            return
+        end
+        local r = ns.QuickSets.Pick(key)
+        if not r then
+            ns.Print("Usage: /comms set world | party | raid | auto")
+            return
+        end
+        ns.UI.Refresh()
+        ns.Print(ns.QuickSets.Describe())
+        return r
     elseif cmd == "leave" then
         local ok, why = ns.Channels.CanRunNow()
         if not ok then ns.Print("Not now (" .. why .. "); Comms will leave them afterwards.") end

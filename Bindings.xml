@@ -9,6 +9,11 @@
 	<Binding name="COMMS_QUICKLINE_8">Comms.QuickLine(8)</Binding>
 	<Binding name="COMMS_QUICKLINE_9">Comms.QuickLine(9)</Binding>
 	<Binding name="COMMS_QUICKLINE_10">Comms.QuickLine(10)</Binding>
+	<Binding name="COMMS_COMBATLINE_1">Comms.CombatLine(1)</Binding>
+	<Binding name="COMMS_COMBATLINE_2">Comms.CombatLine(2)</Binding>
+	<Binding name="COMMS_COMBATLINE_3">Comms.CombatLine(3)</Binding>
+	<Binding name="COMMS_COMBATLINE_4">Comms.CombatLine(4)</Binding>
+	<Binding name="COMMS_COMBATLINE_5">Comms.CombatLine(5)</Binding>
 	<Binding name="COMMS_OPEN_WHISPERS">Comms.OpenWhispers()</Binding>
 	<Binding name="COMMS_REPLY_LAST">Comms.ReplyLast()</Binding>
 </Bindings>

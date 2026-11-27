@@ -392,7 +392,7 @@ end
 local OPTIONAL = {
     issecretvalue = true, canaccessvalue = true, WOW_PROJECT_CAMELOT = true,
     ChatFrame_AddMessageEventFilter = true, ChatFrame_OpenChat = true, SendChatMessage = true,
-    BNSendWhisper = true, InviteUnit = true, AddonCompartmentFrame = true,
+    BNSendWhisper = true, InviteUnit = true, C_PvP = true, AddonCompartmentFrame = true,
     CommsDB = true, CommsCharDB = true, Comms = true,
     CommsMainFrame = true, CommsMessenger = true, CommsCopyFrame = true, CommsQuickBar = true, CommsMinimapButton = true,
 }

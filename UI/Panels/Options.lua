@@ -148,12 +148,48 @@ end
 
 S["Quick lines"] = function(L)
     local s = set().quick
+    local Sets = ns.QuickSets
     L:Check("Show the quick-bar", s.bar, function(v) s.bar = v UI.QuickBar.Refresh() end)
-    L:Check("Hide the quick-bar in combat", s.barHideInCombat, function(v) s.barHideInCombat = v UI.QuickBar.Refresh() end)
+    L:Check("Hide the quick-bar in combat", s.barHideInCombat, function(v) s.barHideInCombat = v UI.QuickBar.Refresh() end,
+        "Hides the situational row only. The Combat row stays visible in combat (that's its job) unless you turn it off below.")
+    L:Text(dim("With this on, the Combat row still shows in combat; turn the Combat row off below to hide everything."), { size = 12, indent = 30 })
     L:Choice("In chat lockdown", "Addons can't send chat in dungeons and battlegrounds.",
         { { value = "prefill", label = "Put it in the chat box" }, { value = "show", label = "Show it to copy" } },
         s.lockdownAction, function(v) s.lockdownAction = v end)
-    L:Buttons({ { label = "Edit quick lines", onClick = function() UI.Open("quick") end } })
+    L:Label("Situational sets")
+    L:Text(dim(Sets.Describe()), { size = 12 })
+    L:Check("Switch sets automatically", s.auto, function(v)
+        Sets.SetAuto(v)
+        UI.Refresh()
+    end, "Open World solo, Party / Dungeon in a group or dungeon, Raid / BG in a raid, battleground or arena. Only out of combat: a change in combat waits until it ends.")
+    for _, k in ipairs(Sets.SITUATIONAL) do
+        L:Check("Use " .. Sets.NAMES[k], Sets.Enabled(k), function(v)
+            s.sets[k].enabled = v
+            Sets.Evaluate()
+            UI.QuickBar.Refresh()
+        end, "Off: the next set that's on is used instead.")
+    end
+    local pickButtons = {}
+    for _, k in ipairs(Sets.SITUATIONAL) do
+        table.insert(pickButtons, { label = "Pin " .. Sets.SHORT[k], active = Sets.Pinned() == k, onClick = function()
+            Sets.Pick(k)
+            UI.Refresh()
+        end })
+    end
+    table.insert(pickButtons, { label = "Automatic", active = s.auto and not Sets.Pinned(), onClick = function()
+        Sets.Pick("auto")
+        UI.Refresh()
+    end })
+    L:Buttons(pickButtons)
+    L:Text(dim("A pin holds until you pick Automatic (or /comms set auto, or right-click the bar's set tab), or until the next login or /reload. /comms set world | party | raid | auto does the same."), { size = 12 })
+    L:Label("Combat row")
+    L:Choice("Show the Combat row", "Its own row of lines (oom, inc, peel me...) that never swaps in combat. Changes apply out of combat.",
+        { { value = "always", label = "Always" }, { value = "groups", label = "Only in groups" }, { value = "off", label = "Off" } },
+        s.combatRow, function(v) s.combatRow = v UI.QuickBar.Refresh() end)
+    L:Buttons({
+        { label = "Edit quick lines", onClick = function() UI.Open("quick") end },
+        { label = "Edit Combat lines", onClick = function() UI.Open("quick", "combat") end },
+    })
 end
 
 S.History = function(L)
@@ -178,7 +214,7 @@ S.About = function(L)
     L:Text(ns.Lockdown.Status(), { color = ns.Lockdown.ChatLocked() and UI.C.warn or UI.C.text })
     L:Text(dim("In dungeons, raids and battlegrounds WoW Forever hides chat from addons and lets you, not addons, send. Comms steps back there: Blizzard shows the lines plain, quick lines go into the chat box for you to send, and the whisper window points you to main chat."), { size = 12 })
     L:Label("Commands")
-    L:Text("/comms  open or close the window\n/comms whispers · quick · settings · channels · search <text>\n/comms q <n>  fire quick line n\n/comms leave · /comms rejoin  channels\n/comms history clear · /comms setup · /comms help\n/tt [message]  whisper your target", { size = 12 })
+    L:Text("/comms  open or close the window\n/comms whispers · quick · settings · channels · search <text>\n/comms q <n>  fire quick line n of the active set\n/comms set world · party · raid · auto  pick a quick-line set\n/comms leave · /comms rejoin  channels\n/comms history clear · /comms setup · /comms help\n/tt [message]  whisper your target", { size = 12 })
     L:Label("Window")
     local g = ns.db.global
     L:Check("Show minimap button", not g.minimap.hide, function(v) g.minimap.hide = not v ns.Fire("MINIMAP_TOGGLE") end)

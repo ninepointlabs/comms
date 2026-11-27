@@ -1,5 +1,7 @@
--- Quick lines: 10 editable lines fired from the quick-bar (click) or a key
--- binding (key). Both are hardware events, which SAY / YELL / EMOTE / CHANNEL
+-- Quick lines: editable lines (up to 10 per set) fired from the quick-bar
+-- (click) or a key binding (key). Lines live in situational sets
+-- (QuickSets.lua): COMMS_QUICKLINE_n fires slot n of the active set,
+-- COMMS_COMBATLINE_n slot n of the Combat set. Both are hardware events, which SAY / YELL / EMOTE / CHANNEL
 -- need on Forever. Nothing here ever sends on a timer or an event.
 --
 -- In chat lockdown addons can't send at all, so the line is prefilled into
@@ -25,7 +27,8 @@ Q.SLASH = {
 
 local function S() return ns.DB.Settings().quick end
 
-function Q.Lines() return S().lines end
+-- Lines of a set (default: the active situational set).
+function Q.Lines(setKey) return ns.QuickSets.Lines(setKey) end
 
 -- auto = INSTANCE_CHAT > RAID > PARTY > SAY
 function Q.AutoChannel()
@@ -149,15 +152,17 @@ function Q.SlashForm(text, chatType, target)
     return s .. " " .. text
 end
 
--- Fire quick line n. source: "click" | "key" | "slash". Returns
--- "sent" | "prefill" | "shown" | nil.
-function Q.Fire(n, source)
-    local line = Q.Lines()[tonumber(n) or 0]
+-- Fire quick line n of a set (default: the active situational set). source:
+-- "click" | "key" | "slash". Returns "sent" | "prefill" | "shown" | nil.
+function Q.Fire(n, source, setKey)
+    if not Q.HW_SOURCES[source or ""] then return nil end -- never automatic
+    setKey = setKey or ns.QuickSets.Active()
+    local line = setKey and Q.Lines(setKey)[tonumber(n) or 0]
     if not line or ns.Trim(line.text) == "" then
-        ns.Print(("Quick line %s is empty. Edit it in /comms quick."):format(tostring(n)))
+        local name = setKey and ns.QuickSets.NAMES[setKey] or "the active set"
+        ns.Print(("Quick line %s of %s is empty. Edit it in /comms quick."):format(tostring(n), name))
         return nil
     end
-    if not Q.HW_SOURCES[source or ""] then return nil end -- never automatic
     local text, needsTyping, dPos = Q.Expand(line.text)
     local chatType, target = Q.Resolve(line)
     if not chatType then
@@ -186,4 +191,9 @@ end
 function ns.API.QuickLine(n)
     if ns.disabled or not ns.db then return end
     return Q.Fire(n, "key")
+end
+
+function ns.API.CombatLine(n)
+    if ns.disabled or not ns.db then return end
+    return Q.Fire(n, "key", "combat")
 end
