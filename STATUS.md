@@ -1,3 +1,23 @@
+# STATUS: situational quick-chat sets + Combat row (branch `feat/situational-macro-bar`, 2026-11-27)
+
+**PR:** _see below_ (against `main`, **open, not merged, not released**). Brief: `designer-briefs/comms-situational-macro-bar.md` (Tim approved option 2, a dedicated Combat row, 2026-11-27).
+
+**What changed**
+- `Modules/QuickSets.lua` (new): context detection (Raid / BG if `IsInRaid()`, a `pvp`/`arena` instance or `C_PvP.IsBattleground()`; Party / Dungeon in a `party` instance or a group; else Open World; any secret/missing/erroring answer keeps the current set), deferred switching in combat, session pin, per-set enable with fallback, auto on/off.
+- `Core/DB.lua`: schema 2, `settings.quick.sets.{world,party,raid,combat}`, `auto`, `lastPicked`, `combatRow`. `DB.Migrate` now runs *before* defaults are filled and is idempotent. v0.1 lines Tim edited → Open World + Party / Dungeon; untouched v0.1 lines → new defaults. `settings.quick.lines` is left in place (read by nothing) for one version.
+- `UI/QuickBar.lua`: two rows (active set with a set tab; Combat row). Layout runs out of combat only (plus the very first layout after a `/reload` in combat). Hide-in-combat hides row 1 only.
+- `Modules/QuickLines.lua`: `Q.Fire(n, source, setKey)`, `Comms.CombatLine(n)`. Lockdown path unchanged (prefill / show).
+- `Bindings.xml`: `COMMS_QUICKLINE_1..10` unchanged (now: active set), new `COMMS_COMBATLINE_1..5`.
+- `Core/Boot.lua`: `GROUP_ROSTER_UPDATE` on the existing event frame; re-evaluate on `PLAYER_ENTERING_WORLD`, `ZONE_CHANGED_NEW_AREA`, `GROUP_ROSTER_UPDATE`, `PLAYER_REGEN_ENABLED`; `/comms set world|party|raid|auto`.
+- `Core/Lockdown.lua`: `CombatLocked()` is also true between `PLAYER_REGEN_DISABLED` and `PLAYER_REGEN_ENABLED` (InCombatLockdown() is still false inside the REGEN_DISABLED handler, so v0.1's hide-in-combat could miss the start of a fight).
+- Settings › Quick lines (auto, per-set on/off, pins, Combat row mode) and the editor (`/comms quick`: tab per set, Add / Remove / Reset line / Reset set).
+
+**Headless tests:** 54/54 with `lua5.1` and `luajit`; syntax check over every `.lua`. New/updated: context detection (11 contexts + C_PvP + secret/erroring/missing APIs), deferred swap and no layout in combat, `/reload` mid-fight, Combat row in combat incl. hide-in-combat and the REGEN_DISABLED timing, row modes, bindings (active set + Combat), lockdown → prefill with zero sends across all sets, `/comms set`, pins, per-set enable, migration (untouched / edited / no schema / fresh / idempotent / arrays never merged), editor add/remove/reset, TOC lists every addon file.
+
+**In-game checklist (not yet done):** see the PR body.
+
+---
+
 # STATUS: Comms v0.1 (2026-11-24)
 
 **What it is:** an all-in-one text chat addon for WoW Forever. It replaces the Prat + WIM + Chattynator + BigChatBox + Block Blizzard Chat Channels stack with one addon and stays out of the way in chat lockdown (dungeons, raids, battlegrounds). It's built from `BRIEF.md` (gitignored), on The Terminal List's layout, widget kit, strict-mock tests and CI/release workflow.
