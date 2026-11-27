@@ -16,6 +16,14 @@
 
 **In-game checklist (not yet done):** see the PR body.
 
+**Release v0.2.0 (2026-11-27, on Tim's OK: "Merge PR #2 and cut a new release."):**
+- `omaforge clients`: Forever `1.60.1.71139`, Interface `16001`, matching both TOCs (TOC `## Version` stays `@project-version@`).
+- Release commit `e2c5189` (CHANGELOG `## v0.2.0 (2026-11-27)`, README status/install), Test workflow **pass** (run 46076681062). Locally 54/54 with `lua5.1` and `luajit`, syntax check clean.
+- Annotated tag `v0.2.0` (tag object `24b8ab3`) → `e2c5189`. Release workflow (BigWigs packager) **pass** (run 46076723200). Release: https://github.com/ninepointlabs/comms/releases/tag/v0.2.0
+  - Assets: `Comms-v0.2.0.zip` and `release.json` (`flavor: forever`, `interface: 16001`). I downloaded and checked them: both TOCs say `## Version: v0.2.0` / `Interface: 16001`; every TOC-listed file is present (incl. `Modules/QuickSets.lua`); Core/Modules/UI/Media match git exactly; Bindings.xml, LICENSE and CHANGELOG are included; no tests, tools, docs, BRIEF, STATUS or README.
+  - The packager's notes were replaced with highlights, the v0.1 → v0.2 migration note and install/update steps (`omaforge update` / `omaforge install -c forever github:ninepointlabs/comms`). No autonomix-cli line, because the release ships no Linux executables.
+- `omaforge search -c forever ninepointlabs/comms` resolves **v0.2.0, compatible**; `omaforge check -c forever` (read-only) shows Tim's installed v0.1.0 → **v0.2.0 `Comms-v0.2.0.zip`, compat `ok`, channel stable, update available**. I didn't run `omaforge install`/`update`. Nothing touched the live AddOns folder or WTF/SavedVariables.
+
 ---
 
 # STATUS: Comms v0.1 (2026-11-24)
