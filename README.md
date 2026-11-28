@@ -37,7 +37,7 @@ The quick-bar has two rows:
    | **Party / Dungeon** | in a group, or in a dungeon | ready, omw, ty, quest?, wait, brb, back, gg |
    | **Raid / BG** | in a raid group, a battleground or an arena | inc, help, clear, omw, ready, ty |
 
-2. **The Combat row**: oom, inc, peel, pull, heal (up to 10 lines). It never swaps, and stays visible in combat, even with "Hide the quick-bar in combat" on (that setting hides row 1 only). Settings › Quick lines › Show the Combat row: Always (default) / Only in groups / Off.
+2. **The Combat row**: oom, inc, peel, pull, heal (up to 10 lines). It never swaps, and stays visible in combat, even with "Hide the quick-bar in combat" on (that setting hides row 1 only). **It's optional (on by default):** Settings › Quick lines › "Show the Combat row" turns it off or on, and "When to show it" picks On, always (default) / On, only in groups / Off. Or type `/comms combat off` / `/comms combat on`; bare `/comms combat` says whether it's on (always), on (only in groups) or off, and toggles it. Showing or hiding it waits until combat ends.
 
 How switching works:
 
@@ -49,7 +49,7 @@ How switching works:
 Key bindings (Esc › Options › Keybindings › AddOns › Comms):
 
 - **Quick line 1-10** fire slot 1-10 of the **active set** (the set on the bar). They keep v0.1's binding names, so keys bound in v0.1 still work.
-- **Combat line 1-5** fire the Combat row.
+- **Combat line 1-5** fire the Combat row. While the row is hidden (off, or "only in groups" while solo) they do nothing.
 
 In dungeons, raids and battlegrounds every quick line (any set, Combat too) goes into Blizzard's chat box: press Enter. Upgrading from v0.1: if you had edited your 10 lines, they become your Open World and Party / Dungeon sets; if not, you get the new defaults.
 
@@ -89,6 +89,7 @@ For testing from a checkout, `tools/install-dev.sh` copies only the files WoW ne
 /comms search <text>      search chat history and whispers
 /comms q <n>              fire quick line n of the active set
 /comms set <world|party|raid|auto>   pin a quick-line set, or back to automatic
+/comms combat [on|off]               show or hide the Combat row (bare: show the state and toggle)
 /comms leave | rejoin     channels: leave now / rejoin (prefills /join, press Enter)
 /comms history clear      clear stored chat history
 /comms setup | help

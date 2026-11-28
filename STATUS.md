@@ -1,3 +1,14 @@
+# STATUS: Combat row optional + `/comms combat` (PR, unreleased, 2026-11-27)
+
+Branch `feat/combat-row-optional` → PR against `main` (not merged, not released; `main` is still v0.2.0). Brief: `designer-briefs/comms-combat-row-optional.md`.
+
+- Combat row stays **on by default**; nil / "" / unknown `combatRow` → `"always"`; saved `"groups"` / `"off"` kept. No schema bump.
+- `/comms combat on|off`, bare `/comms combat` reports + toggles. Settings › Quick lines: "Show the Combat row" checkbox + "When to show it" (always / only in groups / off).
+- `Comms.CombatLine(n)` (Combat line 1-5 keys) is a silent no-op while the row isn't wanted (off, or groups while solo).
+- Headless: 57/57 with `lua5.1` and `luajit`, syntax clean. In-game check still to do (see PR body).
+
+---
+
 # STATUS: Comms v0.2.0, situational quick-chat sets + Combat row (2026-11-27)
 
 **PR:** https://github.com/ninepointlabs/comms/pull/2 **merged into `main` on 2026-11-27** (merge commit `fe3474c`, on Tim's OK). Released as **v0.2.0** (see Release below). Brief: `designer-briefs/comms-situational-macro-bar.md` (Tim approved option 2, a dedicated Combat row, 2026-11-27).
