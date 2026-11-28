@@ -183,9 +183,16 @@ S["Quick lines"] = function(L)
     L:Buttons(pickButtons)
     L:Text(dim("A pin holds until you pick Automatic (or /comms set auto, or right-click the bar's set tab), or until the next login or /reload. /comms set world | party | raid | auto does the same."), { size = 12 })
     L:Label("Combat row")
-    L:Choice("Show the Combat row", "Its own row of lines (oom, inc, peel me...) that never swaps in combat. Changes apply out of combat.",
-        { { value = "always", label = "Always" }, { value = "groups", label = "Only in groups" }, { value = "off", label = "Off" } },
-        s.combatRow, function(v) s.combatRow = v UI.QuickBar.Refresh() end)
+    local mode = ns.DB.CombatRow()
+    L:Check("Show the Combat row", mode ~= "off", function(v)
+        s.combatRow = v and "always" or "off"
+        UI.QuickBar.Refresh()
+        UI.Refresh()
+    end, "Its own row of lines (oom, inc, peel me...) that never swaps in combat. Off: the row is hidden and Combat line 1-5 keys do nothing. Changes apply out of combat. Same as /comms combat on | off.")
+    L:Choice("When to show it", "Only in groups: hidden while solo (Combat line keys too). Changes apply out of combat.",
+        { { value = "always", label = "On, always" }, { value = "groups", label = "On, only in groups" }, { value = "off", label = "Off" } },
+        mode, function(v) s.combatRow = v UI.QuickBar.Refresh() UI.Refresh() end)
+    if ns.Lockdown.CombatLocked() then L:Flag("In combat: the Combat row shows or hides when combat ends.") end
     L:Buttons({
         { label = "Edit quick lines", onClick = function() UI.Open("quick") end },
         { label = "Edit Combat lines", onClick = function() UI.Open("quick", "combat") end },
@@ -214,7 +221,7 @@ S.About = function(L)
     L:Text(ns.Lockdown.Status(), { color = ns.Lockdown.ChatLocked() and UI.C.warn or UI.C.text })
     L:Text(dim("In dungeons, raids and battlegrounds WoW Forever hides chat from addons and lets you, not addons, send. Comms steps back there: Blizzard shows the lines plain, quick lines go into the chat box for you to send, and the whisper window points you to main chat."), { size = 12 })
     L:Label("Commands")
-    L:Text("/comms  open or close the window\n/comms whispers · quick · settings · channels · search <text>\n/comms q <n>  fire quick line n of the active set\n/comms set world · party · raid · auto  pick a quick-line set\n/comms leave · /comms rejoin  channels\n/comms history clear · /comms setup · /comms help\n/tt [message]  whisper your target", { size = 12 })
+    L:Text("/comms  open or close the window\n/comms whispers · quick · settings · channels · search <text>\n/comms q <n>  fire quick line n of the active set\n/comms set world · party · raid · auto  pick a quick-line set\n/comms combat on · off  show or hide the Combat row (bare: toggle)\n/comms leave · /comms rejoin  channels\n/comms history clear · /comms setup · /comms help\n/tt [message]  whisper your target", { size = 12 })
     L:Label("Window")
     local g = ns.db.global
     L:Check("Show minimap button", not g.minimap.hide, function(v) g.minimap.hide = not v ns.Fire("MINIMAP_TOGGLE") end)
