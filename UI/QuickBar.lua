@@ -146,14 +146,9 @@ local function fillRow(row, setKey, bindingPrefix, bindingMax)
 end
 
 local function combatRowWanted()
-    local mode = ns.DB.Settings().quick.combatRow
-    if mode == "off" then return false end
-    if mode == "groups" then
-        local ok, inGroup = pcall(IsInGroup)
-        if not ok or ns.Secret(inGroup) then return bar and bar.combat:IsShown() end -- keep as is
-        return inGroup and true or false
-    end
-    return true
+    local wanted = ns.QuickSets.CombatRowWanted()
+    if wanted == nil then return bar and bar.combat:IsShown() end -- can't tell: keep as is
+    return wanted
 end
 
 -- Labels, slots, row visibility. Out of combat only.

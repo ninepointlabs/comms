@@ -193,7 +193,20 @@ function ns.API.QuickLine(n)
     return Q.Fire(n, "key")
 end
 
+-- Silent no-op (no send, no prefill, no print) while the Combat row isn't
+-- wanted: off, or "only in groups" while solo. When "only in groups" can't
+-- tell (secret IsInGroup), it follows what the bar shows.
+function Q.CombatRowActive()
+    local wanted = ns.QuickSets.CombatRowWanted()
+    if wanted == nil then
+        local bar = ns.UI.QuickBar and ns.UI.QuickBar.Get()
+        return bar and bar.combat and bar.combat:IsShown() and true or false
+    end
+    return wanted
+end
+
 function ns.API.CombatLine(n)
     if ns.disabled or not ns.db then return end
+    if not Q.CombatRowActive() then return nil end
     return Q.Fire(n, "key", "combat")
 end

@@ -66,8 +66,30 @@ function Sets.Detect()
     return "world"
 end
 
+-- Should the Combat row be shown right now (by the setting alone)?
+-- true / false, or nil when "only in groups" can't tell (IsInGroup errored
+-- or returned a secret): callers keep whatever is on screen.
+function Sets.CombatRowWanted()
+    local mode = ns.DB.CombatRow()
+    if mode == "off" then return false end
+    if mode == "groups" then
+        local ok, inGroup = pcall(IsInGroup)
+        if not ok or ns.Secret(inGroup) then return nil end
+        return inGroup and true or false
+    end
+    return true
+end
+
+-- "on (always)" / "on (only in groups)" / "off"
+Sets.COMBAT_ROW_TEXT = { always = "on (always)", groups = "on (only in groups)", off = "off" }
+function Sets.DescribeCombatRow()
+    local text = "Combat row: " .. Sets.COMBAT_ROW_TEXT[ns.DB.CombatRow()] .. "."
+    if ns.Lockdown.CombatLocked() then text = text .. " Shows or hides when combat ends." end
+    return text
+end
+
 function Sets.Enabled(key)
-    if key == "combat" then return S().combatRow ~= "off" end
+    if key == "combat" then return ns.DB.CombatRow() ~= "off" end
     local set = S().sets[key]
     return set ~= nil and set.enabled ~= false
 end
