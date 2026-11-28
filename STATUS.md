@@ -8,7 +8,13 @@
 - Combat row clicks (left and right) use the same rule: turned off mid-fight, the row stays visible until combat ends but ignores clicks (Tim, 2026-11-27).
 - Headless: 58/58 with `lua5.1` and `luajit`, syntax clean. In-game check still to do (see the PR body).
 
-**Release v0.2.1 (2026-11-27, on Tim's OK: "Merge Comms PR #3 and cut v0.2.1."):** tag and release in progress; details recorded after the Release workflow.
+**Release v0.2.1 (2026-11-27, on Tim's OK: "Merge Comms PR #3 and cut v0.2.1."):**
+- `omaforge clients`: Forever `1.60.1.71139`, Interface `16001`, matching both TOCs (TOC `## Version` stays `@project-version@`).
+- Release commit `896f9d7` (CHANGELOG `## v0.2.1 (2026-11-27)`, README status, STATUS) on top of merge `9d282ad`. Test workflow **pass** (run 46090794636). Locally 58/58 with `lua5.1` and `luajit`, syntax check clean.
+- Annotated tag `v0.2.1` (tag object `2adcbd1`) → `896f9d7`. Release workflow (BigWigs packager) **pass** (run 46090825824). Release: https://github.com/ninepointlabs/comms/releases/tag/v0.2.1, published 2026-11-27 19:00:03 CST.
+  - Assets: `Comms-v0.2.1.zip` and `release.json` (`flavor: forever`, `interface: 16001`). I downloaded and checked them: both TOCs say `## Version: v0.2.1` / `## Interface: 16001`; every TOC-listed file is present; Core/Modules/UI/Media match git exactly; Bindings.xml, LICENSE and CHANGELOG are included; no tests, tools, docs, BRIEF, STATUS or README.
+  - The packager's notes were replaced with highlights, an upgrade note (no migration) and install/update steps (`omaforge update` / `omaforge install -c forever github:ninepointlabs/comms`). No autonomix-cli line, because the release ships no Linux executables.
+- `omaforge search -c forever ninepointlabs/comms` resolves **v0.2.1, `compatible: true`**; `omaforge check -c forever` (read-only) shows Tim's installed v0.2.0 **-> v0.2.1**, channel stable. I didn't run `omaforge install`/`update`. Nothing touched the live AddOns folder or WTF/SavedVariables.
 
 ---
 
