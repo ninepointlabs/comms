@@ -37,7 +37,7 @@ The quick-bar has two rows:
    | **Party / Dungeon** | in a group, or in a dungeon | ready, omw, ty, quest?, wait, brb, back, gg |
    | **Raid / BG** | in a raid group, a battleground or an arena | inc, help, clear, omw, ready, ty |
 
-2. **The Combat row**: oom, inc, peel, pull, heal (up to 10 lines). It never swaps, and stays visible in combat, even with "Hide the quick-bar in combat" on (that setting hides row 1 only). **It's optional (on by default):** Settings › Quick lines › "Show the Combat row" turns it off or on, and "When to show it" picks On, always (default) / On, only in groups / Off. Or type `/comms combat off` / `/comms combat on`; bare `/comms combat` says whether it's on (always), on (only in groups) or off, and toggles it. Showing or hiding it waits until combat ends.
+2. **The Combat row**: oom, inc, peel, pull, heal (up to 10 lines). It never swaps, and stays visible in combat, even with "Hide the quick-bar in combat" on (that setting hides row 1 only). **It's optional (on by default):** Settings › Quick lines › "Show the Combat row" turns it off or on, and "When to show it" picks On, always (default) / On, only in groups / Off. Or type `/comms combat off` / `/comms combat on`; bare `/comms combat` says whether it's on (always), on (only in groups) or off, and toggles it. Showing or hiding it waits until combat ends; turned off mid-fight, it stays on screen until then but ignores clicks and keys.
 
 How switching works:
 

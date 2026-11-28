@@ -5,6 +5,7 @@
 - The Combat row is optional (still on by default, also for existing settings). Settings › Quick lines has a "Show the Combat row" checkbox, and "When to show it" (On, always / On, only in groups / Off) keeps the groups mode.
 - `/comms combat on` / `/comms combat off`; bare `/comms combat` reports on (always), on (only in groups) or off, and toggles. Listed in `/comms help` and Settings › About. Showing or hiding still waits until combat ends.
 - Fix: Combat line 1-5 keys no longer fire while the Combat row is hidden (off, or "only in groups" while solo): no send, no prefill, no message.
+- Turning the Combat row off mid-fight (or leaving a group with "only in groups" on) keeps it on screen until combat ends, as before, but its buttons now ignore clicks (left and right) until it hides.
 - A missing, blank or unknown saved Combat row value now counts as on (always). No schema change.
 
 ## v0.2.0 (2026-11-27)

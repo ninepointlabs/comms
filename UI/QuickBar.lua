@@ -9,6 +9,7 @@
 -- (Bar.Layout runs out of combat only; a set change in combat waits for
 -- PLAYER_REGEN_ENABLED), so buttons never jump under the mouse mid-fight.
 -- The only thing that changes in combat is "hide in combat" hiding row 1.
+-- A Combat row that's no longer wanted ignores clicks until it hides.
 local _, ns = ...
 local UI = ns.UI
 
@@ -41,6 +42,10 @@ local function makeRow(parent, setKey)
         b.setKey = setKey
         b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
         b:SetScript("OnClick", function(self, mouse)
+            -- Combat row turned off (or "only in groups" while solo) mid-fight:
+            -- it stays on screen until combat ends, but clicks (left and
+            -- right) do nothing, same rule as the Combat line keys.
+            if self.setKey == "combat" and not ns.QuickLines.CombatRowActive() then return end
             if mouse == "RightButton" then
                 UI.Open("quick", self.setKey or ns.QuickSets.Active())
             else

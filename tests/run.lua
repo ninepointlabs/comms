@@ -1328,6 +1328,77 @@ test("combat row: Combat line keys are a silent no-op while the row is off or gr
     settle()
 end)
 
+test("combat row: clicks on a still-visible row do nothing once it's off mid-fight or groups+solo", function()
+    settle()
+    local bar = CommsQuickBar
+    local function click(i, mouse)
+        local b = bar.combat.buttons[i]
+        return pcall(b.__scripts.OnClick, b, mouse or "LeftButton")
+    end
+    local function quiet(msg)
+        eq(#M.sent, 0, msg .. ": no send"); eq(#M.opened, 0, msg .. ": no prefill")
+        eq(#M.printed, 0, msg .. ": no print"); eq(#M.popups, 0, msg .. ": no copy box")
+    end
+    -- Mid-fight off: row stays, clicks ignored, then it hides after combat.
+    Q().combatRow = "always"
+    Bar.Refresh()
+    S.combat = true
+    M.Fire("PLAYER_REGEN_DISABLED")
+    M.sent = {}
+    truthy(click(1)); eq(M.sent[1].text, "oom", "on: click works in combat")
+    ns.Slash("combat off")
+    eq(bar.combat.__shown, true, "still visible mid-fight")
+    for _, locked in ipairs({ false, true }) do
+        S.chatLocked = locked
+        ns.Lockdown.Recompute()
+        M.sent, M.opened, M.printed, M.popups = {}, {}, {}, {}
+        local ui = ns.UI.Current()
+        for i = 1, 5 do truthy(click(i), "no error (left)") end
+        truthy(click(1, "RightButton"), "no error (right)")
+        quiet("off mid-fight, locked=" .. tostring(locked))
+        eq(ns.UI.Current(), ui, "right-click doesn't open the editor")
+    end
+    S.chatLocked = false
+    ns.Lockdown.Recompute()
+    S.combat = false
+    M.Fire("PLAYER_REGEN_ENABLED")
+    eq(bar.combat.__shown, false, "hidden after combat")
+    -- Groups, solo, mid-fight (left the group in combat).
+    Q().combatRow = "groups"
+    S.group = "party"
+    M.Fire("GROUP_ROSTER_UPDATE")
+    eq(bar.combat.__shown, true)
+    S.combat = true
+    M.Fire("PLAYER_REGEN_DISABLED")
+    S.group = nil
+    M.Fire("GROUP_ROSTER_UPDATE")
+    eq(bar.combat.__shown, true, "left the group mid-fight: stays")
+    M.sent, M.opened, M.printed, M.popups = {}, {}, {}, {}
+    for i = 1, 5 do truthy(click(i)) end
+    quiet("groups+solo")
+    -- Back in a group: clicks work again.
+    S.group = "party"
+    M.Fire("GROUP_ROSTER_UPDATE")
+    truthy(click(2)); eq(M.sent[1].text, "inc", "groups + in a group: click works")
+    -- Secret IsInGroup: follows the bar (shown -> fires).
+    local real = IsInGroup
+    rawset(_G, "IsInGroup", function() return M.SECRET end)
+    M.sent = {}
+    truthy(click(1)); eq(M.sent[1] and M.sent[1].text, "oom", "secret: follows the visible bar")
+    rawset(_G, "IsInGroup", real)
+    S.combat = false
+    M.Fire("PLAYER_REGEN_ENABLED")
+    -- Situational row unaffected.
+    Q().combatRow = "off"
+    Bar.Refresh()
+    M.sent = {}
+    local b = bar.main.buttons[1]
+    b.__scripts.OnClick(b, "LeftButton")
+    eq(#M.sent, 1, "row 1 clicks still fire with the Combat row off")
+    Q().combatRow = "always"
+    settle()
+end)
+
 test("quick sets: /comms set pins, auto clears; per-set enable; tab cycles; pin ends at login", function()
     settle()
     M.printed = {}
