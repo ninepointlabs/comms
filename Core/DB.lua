@@ -261,6 +261,7 @@ function DB.Init(account, char)
     account = account or {}
     DB.Migrate(account)
     account = deepDefaults(account, DB.accountDefaults)
+    account.settings.quick.combatRow = DB.NormalizeCombatRow(account.settings.quick.combatRow)
     char = deepDefaults(char or {}, DB.charDefaults)
     char.schema = DB.SCHEMA
     DB.global, DB.char = account, char
@@ -270,6 +271,21 @@ end
 
 function DB.Settings()
     return ns.db.global.settings
+end
+
+-- Combat row mode. nil, "", or anything unknown counts as "always" (the row
+-- is on by default); "groups" and "off" stay as saved.
+DB.COMBAT_ROW_MODES = { always = true, groups = true, off = true }
+function DB.NormalizeCombatRow(mode)
+    if type(mode) == "string" and DB.COMBAT_ROW_MODES[mode] then return mode end
+    return "always"
+end
+
+-- Current Combat row mode (and write the normalized value back).
+function DB.CombatRow()
+    local q = ns.db.global.settings.quick
+    q.combatRow = DB.NormalizeCombatRow(q.combatRow)
+    return q.combatRow
 end
 
 -- Window positions: account-wide or per character.

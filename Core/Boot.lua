@@ -146,9 +146,34 @@ function Cmd.Help()
     ns.Print("/comms whispers · quick · settings · channels · search <text>")
     ns.Print("/comms q <n>  fire quick line n of the active set (in chat lockdown: press Enter after)")
     ns.Print("/comms set world · party · raid · auto  pick (pin) a quick-line set, or back to automatic")
+    ns.Print("/comms combat on · off  show or hide the Combat row (/comms combat: show the state and toggle it)")
     ns.Print("/comms leave · /comms rejoin  auto-leave channels now / rejoin them")
     ns.Print("/comms history clear · /comms setup · /comms help")
     ns.Print("/tt [message]  whisper your target")
+end
+
+-- /comms combat [on|off]. Bare: report and toggle (off -> always;
+-- always or groups -> off). Returns the new mode, or nil for a bad argument.
+-- Visibility goes through QuickBar.Refresh, so in combat it waits for
+-- PLAYER_REGEN_ENABLED like every other layout change.
+function Cmd.Combat(arg)
+    local q = ns.DB.Settings().quick
+    local cur = ns.DB.CombatRow()
+    local new
+    if arg == "on" then new = "always"
+    elseif arg == "off" then new = "off"
+    elseif arg == "" then
+        ns.Print("Combat row was " .. ns.QuickSets.COMBAT_ROW_TEXT[cur] .. "; turning it " .. (cur == "off" and "on." or "off."))
+        new = cur == "off" and "always" or "off"
+    else
+        ns.Print("Usage: /comms combat on | off  (or /comms combat to toggle). " .. ns.QuickSets.DescribeCombatRow())
+        return nil
+    end
+    q.combatRow = new
+    ns.UI.QuickBar.Refresh()
+    ns.UI.Refresh()
+    ns.Print(ns.QuickSets.DescribeCombatRow())
+    return new
 end
 
 function ns.Slash(msg)
@@ -194,6 +219,8 @@ function ns.Slash(msg)
         ns.UI.Refresh()
         ns.Print(ns.QuickSets.Describe())
         return r
+    elseif cmd == "combat" then
+        return Cmd.Combat(rest:lower())
     elseif cmd == "leave" then
         local ok, why = ns.Channels.CanRunNow()
         if not ok then ns.Print("Not now (" .. why .. "); Comms will leave them afterwards.") end

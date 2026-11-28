@@ -1156,6 +1156,249 @@ test("quick sets: bindings fire the active set's slot and Combat slots", functio
     settle()
 end)
 
+test("combat row: default and missing/blank/unknown key = on; saved always/groups/off kept", function()
+    local a = initScratch(nil)
+    eq(a.settings.quick.combatRow, "always", "fresh install")
+    a = initScratch({ schema = 2, settings = { quick = { bar = true } } })
+    eq(a.settings.quick.combatRow, "always", "missing key")
+    for _, bad in ipairs({ "", "bogus", 1, true }) do
+        a = initScratch({ schema = 2, settings = { quick = { combatRow = bad } } })
+        eq(a.settings.quick.combatRow, "always", "bad value " .. tostring(bad))
+    end
+    for _, mode in ipairs({ "always", "groups", "off" }) do
+        a = initScratch({ schema = 2, settings = { quick = { combatRow = mode } } })
+        eq(a.settings.quick.combatRow, mode, "kept " .. mode)
+    end
+    -- v0.1 table (no combatRow at all) migrates to on.
+    a = initScratch({ schema = 1, settings = { quick = { lines = ns.DB.CopyLines(ns.DB.QUICK_DEFAULTS_V1) } } })
+    eq(a.settings.quick.combatRow, "always", "v0.1 upgrade")
+    eq(a.schema, 2, "no schema bump")
+    -- A value broken at runtime reads as on too.
+    Q().combatRow = nil
+    eq(ns.DB.CombatRow(), "always")
+    eq(Q().combatRow, "always")
+end)
+
+test("/comms combat on | off | bare (report + toggle) | bad argument", function()
+    settle()
+    local bar = CommsQuickBar
+    Q().combatRow = "always"
+    Bar.Refresh()
+    eq(bar.combat.__shown, true)
+    M.printed = {}
+    eq(SlashCmdList.COMMS("combat off"), nil) -- SlashCmdList wrapper drops the return
+    eq(Q().combatRow, "off")
+    eq(bar.combat.__shown, false, "hidden out of combat")
+    truthy(printed("Combat row: off."))
+    M.printed = {}
+    SlashCmdList.COMMS("combat on")
+    eq(Q().combatRow, "always")
+    eq(bar.combat.__shown, true)
+    truthy(printed("Combat row: on (always)."))
+    SlashCmdList.COMMS("COMBAT OFF")
+    eq(Q().combatRow, "off", "case-insensitive")
+    -- Bare: report + toggle.
+    M.printed = {}
+    eq(ns.Slash("combat"), "always")
+    truthy(printed("Combat row was off; turning it on."))
+    truthy(printed("Combat row: on (always)."))
+    M.printed = {}
+    eq(ns.Slash("combat"), "off")
+    truthy(printed("Combat row was on (always); turning it off."))
+    Q().combatRow = "groups"
+    M.printed = {}
+    eq(ns.Slash("combat"), "off", "groups toggles to off")
+    truthy(printed("Combat row was on (only in groups); turning it off."))
+    -- Bad argument: usage, nothing changes.
+    for _, mode in ipairs({ "always", "groups", "off" }) do
+        Q().combatRow = mode
+        M.printed = {}
+        eq(ns.Slash("combat maybe"), nil)
+        eq(Q().combatRow, mode, "bad arg leaves " .. mode)
+        truthy(printed("Usage: /comms combat on | off"))
+    end
+    -- In combat: setting recorded, visibility waits for PLAYER_REGEN_ENABLED.
+    Q().combatRow = "always"
+    Bar.Refresh()
+    eq(bar.combat.__shown, true)
+    S.combat = true
+    M.Fire("PLAYER_REGEN_DISABLED")
+    local before = Bar.layouts
+    M.printed = {}
+    ns.Slash("combat off")
+    eq(Q().combatRow, "off")
+    eq(bar.combat.__shown, true, "not hidden mid-fight")
+    eq(Bar.layouts, before, "no layout in combat")
+    truthy(Bar.dirty, "pending layout")
+    truthy(printed("Shows or hides when combat ends."))
+    ns.Slash("combat on")
+    ns.Slash("combat off")
+    eq(bar.combat.__shown, true)
+    S.combat = false
+    M.Fire("PLAYER_REGEN_ENABLED")
+    eq(bar.combat.__shown, false, "hidden after combat")
+    S.combat = true
+    M.Fire("PLAYER_REGEN_DISABLED")
+    ns.Slash("combat on")
+    eq(bar.combat.__shown, false, "not shown mid-fight")
+    S.combat = false
+    M.Fire("PLAYER_REGEN_ENABLED")
+    eq(bar.combat.__shown, true, "shown after combat")
+    -- Other subcommands untouched.
+    SlashCmdList.COMMS("set raid")
+    eq(ns.QuickSets.Active(), "raid")
+    eq(Q().combatRow, "always")
+    -- Help and About list it.
+    M.printed = {}
+    SlashCmdList.COMMS("help")
+    truthy(printed("/comms combat on · off"))
+    truthy(readFile("UI/Panels/Options.lua"):find("/comms combat on · off", 1, true), "About lists it")
+    settle()
+end)
+
+test("combat row: Combat line keys are a silent no-op while the row is off or groups+solo", function()
+    settle()
+    local errs = {}
+    local function press(i)
+        local ok, r = pcall(Comms.CombatLine, i)
+        if not ok then table.insert(errs, r) end
+        return r
+    end
+    for _, case in ipairs({ { mode = "off", group = nil }, { mode = "off", group = "party" }, { mode = "groups", group = nil } }) do
+        Q().combatRow = case.mode
+        S.group = case.group
+        M.Fire("GROUP_ROSTER_UPDATE")
+        for _, locked in ipairs({ false, true }) do
+            S.chatLocked = locked
+            ns.Lockdown.Recompute()
+            for _, inCombat in ipairs({ false, true }) do
+                S.combat = inCombat
+                M.sent, M.opened, M.printed, M.popups = {}, {}, {}, {}
+                for i = 1, 6 do eq(press(i), nil, case.mode .. " slot " .. i) end
+                eq(#M.sent, 0, "no send"); eq(#M.opened, 0, "no prefill")
+                eq(#M.printed, 0, "no print"); eq(#M.popups, 0, "no copy box")
+            end
+            S.combat = false
+        end
+        S.chatLocked = false
+        ns.Lockdown.Recompute()
+    end
+    eq(#errs, 0, "no Lua errors: " .. tostring(errs[1]))
+    -- Row on: works as in v0.2 (send; lockdown prefill; in combat).
+    Q().combatRow = "groups"
+    S.group = "party"
+    M.Fire("GROUP_ROSTER_UPDATE")
+    M.sent = {}
+    eq(Comms.CombatLine(1), "sent", "groups + in a group")
+    eq(M.sent[1].text, "oom")
+    Q().combatRow = "always"
+    S.group = nil
+    M.Fire("GROUP_ROSTER_UPDATE")
+    eq(Comms.CombatLine(2), "sent", "always + solo")
+    eq(M.sent[2].text, "inc"); eq(M.sent[2].chatType, "SAY")
+    S.combat = true
+    M.Fire("PLAYER_REGEN_DISABLED")
+    eq(Comms.CombatLine(3), "sent", "in combat")
+    S.combat = false
+    M.Fire("PLAYER_REGEN_ENABLED")
+    S.chatLocked = true
+    S.group, S.instanceType = "instance", "party"
+    ns.Lockdown.Recompute()
+    M.sent, M.opened = {}, {}
+    eq(Comms.CombatLine(1), "prefill", "lockdown prefill")
+    eq(M.opened[1], "/i oom"); eq(#M.sent, 0)
+    -- Groups mode with a secret IsInGroup: follows what the bar shows.
+    Q().combatRow = "groups"
+    local real = IsInGroup
+    rawset(_G, "IsInGroup", function() return M.SECRET end)
+    local shown = CommsQuickBar.combat.__shown
+    M.opened = {}
+    local ok, r = pcall(Comms.CombatLine, 1)
+    truthy(ok, "no error with a secret IsInGroup")
+    eq(r ~= nil, shown and true or false, "follows the bar")
+    rawset(_G, "IsInGroup", real)
+    -- Situational bindings unaffected by the Combat row.
+    S.chatLocked, S.group, S.instanceType = false, nil, nil
+    ns.Lockdown.Recompute()
+    Q().combatRow = "off"
+    M.Fire("ZONE_CHANGED_NEW_AREA")
+    M.sent = {}
+    eq(Comms.QuickLine(1), "sent", "Quick line keys still fire with the Combat row off")
+    Q().combatRow = "always"
+    settle()
+end)
+
+test("combat row: clicks on a still-visible row do nothing once it's off mid-fight or groups+solo", function()
+    settle()
+    local bar = CommsQuickBar
+    local function click(i, mouse)
+        local b = bar.combat.buttons[i]
+        return pcall(b.__scripts.OnClick, b, mouse or "LeftButton")
+    end
+    local function quiet(msg)
+        eq(#M.sent, 0, msg .. ": no send"); eq(#M.opened, 0, msg .. ": no prefill")
+        eq(#M.printed, 0, msg .. ": no print"); eq(#M.popups, 0, msg .. ": no copy box")
+    end
+    -- Mid-fight off: row stays, clicks ignored, then it hides after combat.
+    Q().combatRow = "always"
+    Bar.Refresh()
+    S.combat = true
+    M.Fire("PLAYER_REGEN_DISABLED")
+    M.sent = {}
+    truthy(click(1)); eq(M.sent[1].text, "oom", "on: click works in combat")
+    ns.Slash("combat off")
+    eq(bar.combat.__shown, true, "still visible mid-fight")
+    for _, locked in ipairs({ false, true }) do
+        S.chatLocked = locked
+        ns.Lockdown.Recompute()
+        M.sent, M.opened, M.printed, M.popups = {}, {}, {}, {}
+        local ui = ns.UI.Current()
+        for i = 1, 5 do truthy(click(i), "no error (left)") end
+        truthy(click(1, "RightButton"), "no error (right)")
+        quiet("off mid-fight, locked=" .. tostring(locked))
+        eq(ns.UI.Current(), ui, "right-click doesn't open the editor")
+    end
+    S.chatLocked = false
+    ns.Lockdown.Recompute()
+    S.combat = false
+    M.Fire("PLAYER_REGEN_ENABLED")
+    eq(bar.combat.__shown, false, "hidden after combat")
+    -- Groups, solo, mid-fight (left the group in combat).
+    Q().combatRow = "groups"
+    S.group = "party"
+    M.Fire("GROUP_ROSTER_UPDATE")
+    eq(bar.combat.__shown, true)
+    S.combat = true
+    M.Fire("PLAYER_REGEN_DISABLED")
+    S.group = nil
+    M.Fire("GROUP_ROSTER_UPDATE")
+    eq(bar.combat.__shown, true, "left the group mid-fight: stays")
+    M.sent, M.opened, M.printed, M.popups = {}, {}, {}, {}
+    for i = 1, 5 do truthy(click(i)) end
+    quiet("groups+solo")
+    -- Back in a group: clicks work again.
+    S.group = "party"
+    M.Fire("GROUP_ROSTER_UPDATE")
+    truthy(click(2)); eq(M.sent[1].text, "inc", "groups + in a group: click works")
+    -- Secret IsInGroup: follows the bar (shown -> fires).
+    local real = IsInGroup
+    rawset(_G, "IsInGroup", function() return M.SECRET end)
+    M.sent = {}
+    truthy(click(1)); eq(M.sent[1] and M.sent[1].text, "oom", "secret: follows the visible bar")
+    rawset(_G, "IsInGroup", real)
+    S.combat = false
+    M.Fire("PLAYER_REGEN_ENABLED")
+    -- Situational row unaffected.
+    Q().combatRow = "off"
+    Bar.Refresh()
+    M.sent = {}
+    local b = bar.main.buttons[1]
+    b.__scripts.OnClick(b, "LeftButton")
+    eq(#M.sent, 1, "row 1 clicks still fire with the Combat row off")
+    Q().combatRow = "always"
+    settle()
+end)
+
 test("quick sets: /comms set pins, auto clears; per-set enable; tab cycles; pin ends at login", function()
     settle()
     M.printed = {}
