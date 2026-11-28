@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.2.1 (2026-11-27)
 
 - The Combat row is optional (still on by default, also for existing settings). Settings › Quick lines has a "Show the Combat row" checkbox, and "When to show it" (On, always / On, only in groups / Off) keeps the groups mode.
 - `/comms combat on` / `/comms combat off`; bare `/comms combat` reports on (always), on (only in groups) or off, and toggles. Listed in `/comms help` and Settings › About. Showing or hiding still waits until combat ends.

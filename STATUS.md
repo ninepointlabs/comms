@@ -1,12 +1,14 @@
-# STATUS: Combat row optional + `/comms combat` (PR, unreleased, 2026-11-27)
+# STATUS: Comms v0.2.1, optional Combat row + `/comms combat` (2026-11-27)
 
-Branch `feat/combat-row-optional` → PR against `main` (not merged, not released; `main` is still v0.2.0). Brief: `designer-briefs/comms-combat-row-optional.md`.
+**PR:** https://github.com/ninepointlabs/comms/pull/3 **merged into `main` on 2026-11-27 18:58 CT** by Tim (merge commit `9d282ad`, regular merge). Released as **v0.2.1** (see Release below). Brief: `designer-briefs/comms-combat-row-optional.md`.
 
-- Combat row stays **on by default**; nil / "" / unknown `combatRow` → `"always"`; saved `"groups"` / `"off"` kept. No schema bump.
+- Combat row stays **on by default**; nil / "" / unknown `combatRow` → `"always"`; saved `"groups"` / `"off"` kept. No schema bump (still 2).
 - `/comms combat on|off`, bare `/comms combat` reports + toggles. Settings › Quick lines: "Show the Combat row" checkbox + "When to show it" (always / only in groups / off).
 - `Comms.CombatLine(n)` (Combat line 1-5 keys) is a silent no-op while the row isn't wanted (off, or groups while solo).
 - Combat row clicks (left and right) use the same rule: turned off mid-fight, the row stays visible until combat ends but ignores clicks (Tim, 2026-11-27).
-- Headless: 58/58 with `lua5.1` and `luajit`, syntax clean. In-game check still to do (see PR body).
+- Headless: 58/58 with `lua5.1` and `luajit`, syntax clean. In-game check still to do (see the PR body).
+
+**Release v0.2.1 (2026-11-27, on Tim's OK: "Merge Comms PR #3 and cut v0.2.1."):** tag and release in progress; details recorded after the Release workflow.
 
 ---
 
